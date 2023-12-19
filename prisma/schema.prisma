@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "sqlite"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// model Post {
+//   id        Int      @id @default(autoincrement())
+//   title     String
+//   content   String?
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   published Boolean  @default(false)
+//   author    User?    @relation(fields: [authorId], references: [id])
+//   authorId  Int?
+// }
+
+// CREATE TABLE Users (
+//     user_id TEXT PRIMARY KEY,
+//     username TEXT NOT NULL UNIQUE,
+//     email TEXT NOT NULL UNIQUE,
+
+//     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
+
+model User {
+  id       String  @id @default(uuid())
+  username String  @unique
+  name     String?
+
+  email String @unique
+
+  passwordHash   String? // empty hole bujhbo password set koreni
+  email_verified Boolean @default(false) // default provider:password false, provider:oauth true
+
+  createAt         DateTime           @default(now())
+  updateAt         DateTime           @updatedAt
+  oauthCredentials OauthCredentials[]
+}
+
+model OauthCredentials {
+  id String @id @default(uuid())
+
+  provider                String
+  refreshToken            String    @unique // shob save rakhte hobe
+  oauthRefreshToken       String?   @unique
+  oauthLastTokenRefreshed DateTime? // for cronjobs
+  userId                  String
+
+  user User @relation(fields: [userId], references: [id])
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt // gives users last token refresh time
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model TempUser {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  username String?
+  name     String?
+
+  provider         String
+  authAccessToken  String?
+  authRefreshToken String?
+
+  deviceFingerprint String?
+  oauthIdToken      String?
+  oauthAccessToken  String?
+  oauthRefreshToken String?
+  createAt          DateTime @default(now())
+
+  @@index([email])
+}
+
+model TempData {
+  id                String @id @default(uuid())
+  data              String // will save json here
+  deviceFingerprint String // hex string
+}
