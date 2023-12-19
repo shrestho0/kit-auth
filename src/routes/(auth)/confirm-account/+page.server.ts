@@ -77,16 +77,21 @@ export const actions: Actions = {
             const permanentUser = await prisma.user.create({
                 data: {
                     id: tempUser.id,
-                    email: tempUser.email,
+                    
                     username: tempUser.username ?? randomDefinedUserName,
                     name: tempUser.name,
-                    email_verified: true,
+                    verified: true,
+
                     oauthCredentials: {
                         create: {
                             provider: tempUser.provider as string,
-                            refreshToken: refreshToken,
+                            providerEmail: tempUser.email as string,
                             oauthRefreshToken: tempUser.oauthRefreshToken as string,
-                            oauthLastTokenRefreshed: new Date(),
+                        }
+                    },
+                    RefreshTokens: {
+                        create: {
+                            refreshToken: refreshToken,
                         }
                     }
 

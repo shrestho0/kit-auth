@@ -1,8 +1,6 @@
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES, OAUTH_REDIRECT } from "$env/static/private";
-import prisma from "$lib/server/prisma";
-import { createOAuthCredentials, generateGoogleAuthUrl, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
+import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, generateGoogleAuthUrl, handleGoogeAuthSubmission, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
 import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
-import { convertNumberSuffixToSecond } from "$lib/utils/utils.common";
 import { comparePassword, generateAuthTokens, setAuthCookies } from "$lib/utils/utils.server";
 import { userLoginSchema } from "$lib/validations/auth-validation";
 import type { OauthCredentials } from "@prisma/client";
@@ -35,100 +33,46 @@ export const actions: Actions = {
             })
         }
 
-        // ekhane safe
-        try {
-            const user = await prisma.user.findUnique({
-                where: {
-                    email: validatedData.data.email
-                }, include: {
-                    oauthCredentials: true
-                }
+        // check if user exists with the provider,providerEmail
+        const passProvider = await AuthProvidersUtility.getProviderByEmailAndName(validatedData.data.email, "password");
+        let errors = []
 
-            },)
-            if (user) {
-                console.log("user found", user);
-                // check password
-                if (await comparePassword(validatedData.data.password, user.passwordHash as string)) {
-
-                    locals.user_id = user.id;
-                    locals.user_username = user.username;
-                    userAuthProviders = user.oauthCredentials;
-
-                } else {
-
-                    return returnFailClientError(400, [
-                        {
-                            path: ["password"],
-                            message: "Password is incorrect"
-                        }
-                    ])
-                }
-            } else {
-
-                return returnFailClientError(404, [
-                    {
-                        path: ["email"],
-                        message: "User not found"
-                    }
-                ])
-            }
-
-        } catch (e) {
-            console.log("error", e);
-
-            return returnFailServerError();
+        // if exists
+        if (!passProvider) {
+            errors.push({ path: ["email"], message: "No user found with email" });
+            return returnFailClientError(404, errors)
         }
 
+        // check password
+        const passValid = await comparePassword(validatedData.data.password, passProvider.passwordHash as string);
+        if (!passValid) {
+            errors.push({ path: ["password"], message: "Password is incorrect" });
+            return returnFailClientError(400, errors)
+        }
 
-        // jodi shob thik thake
+        console.log("password is valid");
 
-        if (locals.user_id && locals.user_username) {
+        // get user by id
+        const theUser = await UsersUtility.get(passProvider.userId);
+        if (!theUser) return returnFailServerError();
 
+        const tokens = await generateAuthTokens({
+            id: theUser.id,
+            username: theUser.username
 
-            // create jwt token
-            const tokens: Tokens = await generateAuthTokens({
-                id: locals.user_id as string,
-                username: locals.user_username as string
-            });
+        });
 
+        await AuthProvidersUtility.update(passProvider.id, {
+            refreshToken: tokens.refreshToken
+        });
 
+        await setAuthCookies(cookies, tokens, "password");
 
-            // find appropiate OauthCredential provider for user 
+        return redirect(307, "/");
 
-            const provider = "password";
-            userAuthProviders?.forEach(async (oProvider: OauthCredentials) => {
-                if (oProvider?.provider === "password") {
-                    await updateOAuthCredentials(oProvider.id, {
-
-                        refreshToken: tokens.refreshToken,
-                    } as OauthCredentials);
-                }
-                // set amra regiter er time ee kore felsi ekhon update korlei hobe;
-            })
-            // update refresh token
-            // set cookies
-            await setAuthCookies(cookies, tokens, provider);
-
-
-            return redirect(307, "/");
-
-
-        } else return returnFailServerError();
     },
 
-    google: async ({ request, locals, cookies, url }) => {
-        const provider = "google";
-        const siteUrl = url.origin;
-        console.log(GOOGLE_CLIENT_ID,
-            GOOGLE_CLIENT_SECRET,
-            siteUrl + OAUTH_REDIRECT + `/?provider=${provider}`
-            , "request hobe");
-
-        const authUrl = await generateGoogleAuthUrl(siteUrl);
-        // return redirect(307, authorizationUrl);
-        return {
-            success: true,
-            authUrl
-        }
-    }
+    google: handleGoogeAuthSubmission(),
 };
+
+

@@ -1,11 +1,11 @@
 import { google } from "googleapis";
 import type { PageServerLoad } from "./$types";
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_COOKIE_NAME, OAUTH_REDIRECT } from "$env/static/private";
-import { createOAuthCredentials, createTempUser, deleteTempUser, findTempUserWithEmail, findUsersWithEmailOrUsername, getGoogleOauth2Client, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
+import { AuthProvidersUtility, RefreshTokenUtility, TempDataUtility, TempUserUtility, UsersUtility, createOAuthCredentials, createTempUser, deleteTempUser, findTempUserWithEmail, findUsersWithEmailOrUsername, getGoogleOauth2Client, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
 import { generateAuthTokens, pasrseUserDataFromGoogleIdToken, processCookie, setAuthCookies } from "$lib/utils/utils.server";
 import prisma from "$lib/server/prisma";
 import { redirect, type Cookies } from "@sveltejs/kit";
-import type { OauthCredentials } from "@prisma/client";
+import type { OauthCredentials, TempData } from "@prisma/client";
 import { RSAKey } from "$lib/server/rsa-key";
 
 
@@ -41,37 +41,46 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
 
     // checking users existance
 
-    const dbUser = await findUsersWithEmailOrUsername({
-        email: gUserData?.email as string,
-        oProviders: true
-    });
+    // const dbUser = await findUsersWithEmailOrUsername({
+    //     email: gUserData?.email as string,
+    //     oProviders: true
+    // });
+    const dbUser = await UsersUtility.findUserByEmail(gUserData?.email as string);
     console.log(dbUser);
     // handling old user
-    if (dbUser?.length == 1) {
-        const oauthCredProviders = dbUser[0].oauthCredentials;
-        const oauthCreds = oauthCredProviders?.find((cred: any) => cred.provider === "google");
+    if (dbUser) {
+        const theToken = await RefreshTokenUtility.getByUserId(dbUser.id);
+
+        // const oauthCredProviders: any = await AuthProvidersUtility.getByProviderEmail(gUserData.email as string);
+        // const oauthCreds = oauthCredProviders?.find((cred: any) => cred.provider === "google");
+        const oauthCreds = await AuthProvidersUtility.getProviderByEmailAndName(gUserData.email as string, "google");
+
         if (oauthCreds) {
             console.log("oauth creds found");
 
             const authTokens: Tokens = await generateAuthTokens({
-                id: dbUser[0].id,
-                username: dbUser[0].username
+                id: dbUser.id,
+                username: dbUser.username
             });
 
-            await updateOAuthCredentials(oauthCreds.id, {
-                refreshToken: authTokens.refreshToken as string,
-                oauthRefreshToken: tokens.refresh_token as string,
-                oauthLastTokenRefreshed: new Date(),
 
+            await updateOAuthCredentials(oauthCreds.id, {
+                oauthRefreshToken: tokens.refresh_token as string,
             } as OauthCredentials)
 
+            await RefreshTokenUtility.update(theToken.id, {
+                refreshToken: authTokens.refreshToken as string
+            });
 
 
 
-            console.log("setting locals");
-            locals.user_id = dbUser[0].id;
-            locals.user_username = dbUser[0].username;
-            console.log(locals.user_id, locals.user_username,);
+
+
+
+            // console.log("setting locals");
+            locals.user_id = dbUser.id;
+            locals.user_username = dbUser.username;
+            // console.log(locals.user_id, locals.user_username,);
 
             setAuthCookies(cookies, authTokens, oauthCreds.provider as oAuthProviders, true);
             cookies.delete("_tf", {
@@ -80,9 +89,8 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
             // update oauth creds
             // update tokens, oauth tokens
             // set cookies
-            console.log("user logged in with", oauthCredProviders[0].provider)
+            console.log("user logged in with", oauthCreds.provider)
 
-            // return redirect(301, "/");
 
             return {
                 status: "REDIRECT" as OAUTH_CALLBACK_RESPONSE_STATUS,
@@ -99,13 +107,17 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
 
             }
 
-        } else if (oauthCredProviders?.length != 0) {
-            console.log("oauth creds not found but other [[user]] found");
+        }
+
+
+        const userProviders = await AuthProvidersUtility.getByUserId(dbUser.id);
+
+
+        if (userProviders?.length != 0) {
+            console.log("creds found with other providers", userProviders);
             // send oauth data like previous one to merge with
 
-            // const newProvider = createOAuthCredentials({
 
-            // })
 
             /**
              * @todo test before doing
@@ -117,7 +129,31 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
             // else delete data
             // link accounts
 
-            const rvkey = "";
+            const temp_temp_data = {
+                provider: "google",
+                gUserData,
+                userProviders,
+                deviceFingerprint: cookies.get("_tf") ?? "",
+            };
+
+            const temp_data = await TempDataUtility.create({
+                jsonStr: JSON.stringify(temp_temp_data)
+            } as TempData)
+
+
+
+            if (!temp_data) {
+                throw new Error("temp data not created");
+            }
+
+
+            const payloadString = JSON.stringify({
+                temp_data_id: temp_data.id,
+                expiresAt: Date.now() + 1000 * 60 * 60 * 1 // 1 hour
+            });
+            const rvkey = encodeURIComponent(RSAKey.encrypt(payloadString) ?? "");
+
+
             return {
                 status: "REDIRECT" as OAUTH_CALLBACK_RESPONSE_STATUS,
                 type: "LINK_ACCOUNTS" as OAUTH_CALLBACK_RESPONSE_STATUS_TYPE,
@@ -138,14 +174,15 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
         let newUserName = gUserData.email?.split("@")[0] ?? newUserId?.split("-")[3];
 
         // // find if username exists
-        const usernameExists = await findUsersWithEmailOrUsername({
-            username: newUserName,
-            oProviders: false
-        })
+        // const usernameExists = await findUsersWithEmailOrUsername({
+        //     username: newUserName,
+        //     oProviders: false
+        // })
 
-        if (usernameExists?.length != 0) {
-            newUserName = newUserName + newUserId?.split("-")[2];
-        }
+        const usernameExists = await UsersUtility.findUserByUsername(newUserName);
+
+        if (usernameExists) newUserName = newUserName + newUserId?.split("-")[2];
+
 
 
         let newProvider: oAuthProviders = "google";
@@ -167,11 +204,14 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
 
 
         // handling temp user duplication
-        const existingTempUserWithEmail = await findTempUserWithEmail(tempUserData.email);
-        if (existingTempUserWithEmail) await deleteTempUser(existingTempUserWithEmail.id);
+        // const existingTempUserWithEmail = await findTempUserWithEmail(tempUserData.email);
+        const existingTempUserWithEmail = await TempUserUtility.findByEmail(tempUserData.email);
+        // if (existingTempUserWithEmail) await deleteTempUser(existingTempUserWithEmail.id);
+        if (existingTempUserWithEmail) await TempUserUtility.delete(existingTempUserWithEmail.id);
 
 
-        const tempUser = await createTempUser(tempUserData);
+        // const tempUser = await createTempUser(tempUserData);
+        const tempUser = await TempUserUtility.create(tempUserData);
 
 
 
@@ -194,15 +234,8 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
 
         }
 
-        // set a message to cookie and send to register page
 
     }
-    // get user email
-
-    // check in database
-    // if yes, update tokens, else, return error
-
-
 
     console.log(tokens.id_token);
 

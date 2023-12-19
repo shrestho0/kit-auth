@@ -1,11 +1,11 @@
 
 import prisma from "$lib/server/prisma";
 import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
-import { createOAuthCredentials, findUsersWithEmailOrUsername } from "$lib/utils/auth-utils.server";
-import { comparePassword, generateAuthTokens, hashPassword, setAuthCookies } from "$lib/utils/utils.server";
+import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, createOAuthCredentials, findUsersWithEmailOrUsername } from "$lib/utils/auth-utils.server";
+import { comparePassword, generateAuthTokens, hashPassword, resultOrNull, setAuthCookies } from "$lib/utils/utils.server";
 import { userRegisterSchema } from "$lib/validations/auth-validation";
 import { fail, type Actions, redirect } from "@sveltejs/kit";
-import type { OauthCredentials } from "@prisma/client";
+import type { OauthCredentials, RefreshTokens } from "@prisma/client";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -21,98 +21,68 @@ export const actions: Actions = {
         // Check if user exists with that username or email
 
         const validatedData = userRegisterSchema.safeParse(regData);
-        // console.log(validatedData.success, validatedData?.error);
-        if (!validatedData.success) {
 
-            // return fail(400, {
-            //     success: false,
-            //     errors: structuredClone(validatedData.error.errors)
-            // })
+        // handling validation errors
+        if (!validatedData.success) {
             return returnFailClientError(400, structuredClone(validatedData.error.errors));
         }
 
-        const users = await findUsersWithEmailOrUsername({
-            email: validatedData.data.email,
-            username: validatedData.data.username,
-            oProviders: true
-        });
-        // check if was the email or username
+        // handle existsing users
 
-        if (users === undefined) return returnFailServerError();
+        const userWithEmail = await UsersUtility.findUserByEmail(validatedData.data.email);
+        const userWithUsername = await UsersUtility.findUserByUsername(validatedData.data.username);
 
-
-        if (users.length == 0) {
-
-            // console.log("trying to create user");
-
-            const data = await prisma.user.create({
-                data: {
-                    username: validatedData.data.username,
-                    email: validatedData.data.email,
-                    passwordHash: await hashPassword(validatedData.data.password),
-                }
-
+        let errors = [];
+        if (userWithEmail) {
+            errors.push({
+                path: ["email"],
+                message: "Email already exists"
             })
-            if (data) {
-                locals.user_id = data.id;
-                locals.user_username = data.username;
+        }
+        if (userWithUsername) {
+            errors.push({
+                path: ["username"],
+                message: "Username already exists"
+            })
+        }
 
-            }
-            // console.log("after prisma", data);
-
-        } else {
-            // console.log("already has account", users);
-            let errorX: any = [];
-            users.forEach(user => {
-                if (user.username == validatedData.data.username) {
-                    errorX.push({
-                        path: ["username"],
-                        message: "Username already exists"
-                    })
-                }
-                if (user.email == validatedData.data.email) {
-                    errorX.push({
-                        path: ["email"],
-                        message: "Email already exists"
-                    })
-                }
-            });
-            return returnFailClientError(400, errorX);
-
+        if (userWithEmail || userWithUsername) {
+            return returnFailClientError(400, errors);
         }
 
 
 
+        const newUserData = {
+            username: validatedData.data.username,
+            oauthCredentials: {
+                create: {
+                    provider: "password",
+                    providerEmail: validatedData.data.email,
+                    passwordHash: await hashPassword(validatedData.data.password)
+                }
+            },
+        }
+
+        const newUser = await UsersUtility.create(newUserData);
+
+        if (!newUser) return returnFailServerError(500, {
+            message: "Failed to create user"
+        });
+
+        const tokens = await generateAuthTokens({
+            username: validatedData.data.username,
+            id: newUser.id
+        });
+
+        await RefreshTokenUtility.create({
+            userId: newUser.id,
+            refreshToken: tokens.refreshToken,
+        } as RefreshTokens)
 
 
-        // jodi shob thik thake
+        await setAuthCookies(cookies, tokens, "password");
 
-        if (locals.user_id && locals.user_username) {
+        return redirect(307, "/");
 
-
-            // create jwt token
-            const tokens: Tokens = await generateAuthTokens({
-                id: locals.user_id as string,
-                username: locals.user_username as string
-            });
-
-            const provider = "password";
-
-            await createOAuthCredentials({
-                userId: locals.user_id,
-                provider,
-                refreshToken: tokens.refreshToken,
-
-            } as OauthCredentials)
-
-
-            // set cookies
-            await setAuthCookies(cookies, tokens, provider);
-
-            return redirect(307, "/");
-
-
-        } else return returnFailServerError();
-
-    },
+    }
 };

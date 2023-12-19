@@ -13,7 +13,7 @@ type JWTPayload = {
 
 type GoogleIdTokenPayload = {
     email?: string;
-    email_verified?: boolean;
+    verified?: boolean;
     name?: string;
     picture?: string;
 }

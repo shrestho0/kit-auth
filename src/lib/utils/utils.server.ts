@@ -8,6 +8,16 @@ import type { GoogleApis } from 'googleapis';
 
 
 
+export async function resultOrNull(callback: () => any, outputError: boolean = true) {
+    try {
+        return await callback();
+    }
+    catch (err) {
+        if (outputError) console.log(err);
+
+        return null;
+    }
+}
 
 
 // hash password
@@ -19,8 +29,8 @@ export async function hashPassword(password: string) {
 
 // compare password
 
-export async function comparePassword(password: string, hashedPassword: string) {
-    const isMatch = await bcrypt.compare(password, hashedPassword);
+export async function comparePassword(password: string, encryptedPassword: string) {
+    const isMatch = await bcrypt.compare(password, encryptedPassword);
     return isMatch;
 }
 
@@ -38,9 +48,9 @@ export function decodeBase64TokenObject(payload: any) {
 export async function generateAuthTokens(payload: PreJWTPayload) {
 
 
-    console.log("Generating accessToken");
+    // console.log("Generating accessToken");
 
-    console.log("JWT_ACCESS_EXPIRES", JWT_ACCESS_EXPIRES);
+    // console.log("JWT_ACCESS_EXPIRES", JWT_ACCESS_EXPIRES);
 
     const accessToken = await jwt.sign({
         _data: encodeBase64TokenObject(payload),
@@ -71,6 +81,8 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 
 }
 
+
+// These will go to JWTUtility
 export async function validateToken(token: string, secret: string) {
     try {
         // decode

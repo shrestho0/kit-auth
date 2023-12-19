@@ -1,8 +1,6 @@
 import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/static/private";
-import prisma from "$lib/server/prisma";
-import { findUniqueUserWithID, findUsersWithEmailOrUsername, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
+import { RefreshTokenUtility, findUniqueUserWithID, findUsersWithEmailOrUsername, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
 import { decodeBase64TokenObject, deleteAuthCookies, generateAuthTokens, setAuthCookies, validateToken } from "$lib/utils/utils.server";
-import type { OauthCredentials, User } from "@prisma/client";
 import type { Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -34,7 +32,9 @@ export const handle: Handle = async ({ event, resolve }) => {
                         // access er meyad shesh
                         // check refresh and update tokens
                         let refreshV = await validateToken(refresh, JWT_REFRESH_SECRET);
+                        console.log("refresh", refreshV.valid, refreshV.data);
                         if (refreshV.valid) {
+
                             // shob thik ache
                             // update tokens
                             // check if the user exists now. if not, delete cookies
@@ -47,19 +47,33 @@ export const handle: Handle = async ({ event, resolve }) => {
                             }
                             // user ache
 
-                            const oauthCredentials = someUser.oauthCredentials.find((cred) => cred.provider === provider);
-
-                            if (oauthCredentials) {
+                            // delete hobe
+                            // const oauthCredentials = someUser.oauthCredentials.find((cred) => cred.provider === provider);
+                            // const theToken = await getRefreshToken({
+                            //     userId: refreshV.data.id,
+                            // })
+                            const theToken = await RefreshTokenUtility.getByUserId(refreshV.data.id);
+                            RefreshTokenUtility
+                            if (theToken) {
                                 // normally thakar kotha
-                                console.log("user ache", someUser, oauthCredentials);
+                                console.log("user ache", someUser, theToken);
 
+                                // generated new token
                                 const newTokens = await generateAuthTokens({
                                     id: refreshV.data.id,
                                     username: refreshV.data.username
                                 });
-                                await updateOAuthCredentials(oauthCredentials.id, {
-                                    refreshToken: newTokens.refreshToken,
-                                } as OauthCredentials);
+
+                                // update refresh token
+
+                                // delete hobe
+                                // await updateOAuthCredentials(oauthCredentials.id, {
+                                //     refreshToken: newTokens.refreshToken,
+                                // } as OauthCredentials);
+
+                                await RefreshTokenUtility.update(theToken.id, {
+                                    refreshToken: newTokens.refreshToken
+                                })
 
                                 event.locals.user_id = refreshV.data.id;
                                 event.locals.user_username = refreshV.data.username;
