@@ -3,10 +3,10 @@
 import { returnFailClientError, returnFailServerError } from "$auth/utils/errors.server";
 import { userRegisterSchema } from "$auth/validation";
 import { generateAuthTokens, hashPassword } from "$lib/auth/utils/common.server";
-import { UsersUtility } from "$lib/auth/utils/db.server";
+import { RefreshTokenUtility, UserDeviceUtility, UsersUtility } from "$lib/auth/utils/db.server";
 import { redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import type { OauthCredentials, User } from "@prisma/client";
+import type { OauthCredentials, RefreshToken, User, UserDevice } from "@prisma/client";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import prisma from "$lib/server/db/prisma";
 
@@ -84,30 +84,84 @@ export const actions: Actions = {
 
         const deviceToken = TokensUtility.getDeviceToken(cookies);
 
+        if (!deviceToken) returnFailClientError(400, {
+            // Make the page reload or invalidate all
+            message: "Device token not found. Cookie issue. Reload the page"
+        });
+
         const authTokens = TokensUtility.generateAuthTokens({
             username: validatedData.data.username,
             id: newUser.id
         });
 
 
-        const userDevice = await prisma.userDevice.create({
-            data: {
-                deviceToken: deviceToken ?? "",
-                userId: newUser.id,
-                deviceDataJson: "pore hobe",
+
+
+        // devices will have their own refresh tokens
+        // no need to create refresh token from here
+
+        // const userDevice = await UserDeviceUtility.create(
+        //     {
+        //         deviceToken: deviceToken,
+        //         userId: newUser.id,
+        //         deviceDataJson: `{"todo": "not implemented"}`,
+
+
+        //     } as UserDevice, 
+        //     {
+        //         User
+        //     })
+
+        // const userDevice = await prisma.userDevice.create({
+        //     data: {
+        //         deviceToken: deviceToken ?? "",
+        //         userId: newUser.id,
+        //         deviceDataJson: `{"todo": "not implemented"}`,
+        //     },
+
+
+        // });
+
+        // const refreshTokenAndUserDevice = await prisma.refreshToken.create({
+        //     data: {
+        //         userId: newUser.id,
+        //         refreshToken: authTokens.refreshToken,
+        //         UserDevice: {
+        //             create: {
+        //                 userId: newUser.id,
+        //                 deviceToken: deviceToken ?? "",
+        //                 deviceDataJson: `{"todo": "not implemented"}`,
+        //             }
+        //         }
+        //     },
+
+        // })
+        const refreshAndDeviceData = {
+            userId: newUser.id,
+            refreshToken: authTokens.refreshToken,
+            UserDevice: {
+                create: {
+                    userId: newUser.id,
+                    deviceToken: deviceToken ?? "",
+                    deviceDataJson: `{"todo": "not implemented"}`,
+                }
             }
-        })
+        }
 
-        const refreshToken = await prisma.refreshToken.create({
-            data: {
-                userId: newUser.id,
-                refreshToken: authTokens.refreshToken,
-                deviceTokenId: userDevice.id
-            }
+        const refreshTokenAndUserDevice = await RefreshTokenUtility.create(refreshAndDeviceData);
 
-        })
 
-        console.log(`User: ${structuredClone(newUser)} created with refresh token: ${structuredClone(refreshToken)} and device: ${structuredClone(userDevice)}`);
+        if (!refreshTokenAndUserDevice) return returnFailServerError(500, {
+            message: "Failed to create user device"
+        });
+
+        // const refreshToken = await RefreshTokenUtility.create({
+        //     userId: newUser.id,
+        //     refreshToken: authTokens.refreshToken,
+        //     deviceTokenId: userDevice.id
+        // } as RefreshToken);
+
+        console.log(`User:`, structuredClone(newUser), `created with refresh token:`, structuredClone(refreshTokenAndUserDevice));
 
         TokensUtility.ensureAuthTokenCookie(cookies, authTokens, "password");
 

@@ -12,10 +12,11 @@ import type { PageServerLoad } from "./$types";
 import { redirect, type Actions, type Action, fail } from "@sveltejs/kit";
 import type { OauthCredentials } from "@prisma/client";
 import { userLoginSchema } from "$lib/auth/validation";
-import { AuthProvidersUtility, UsersUtility } from "$lib/auth/utils/db.server";
+import { AuthProvidersUtility, RefreshTokenUtility, UserDeviceUtility, UsersUtility } from "$lib/auth/utils/db.server";
 import { returnFailClientError, returnFailServerError } from "$lib/auth/utils/errors.server";
 import { comparePassword, generateAuthTokens } from "$lib/auth/utils/common.server";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
+import prisma from "$lib/server/db/prisma";
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (locals.user_id && locals.user_username) {
@@ -50,7 +51,7 @@ function handlePasswordAuthSubmission(): Action {
         }
 
         // check if user exists with the provider,providerEmail
-        const passProvider = await AuthProvidersUtility.getProviderByEmailAndName(validatedData.data.email, "password");
+        const passProvider = await AuthProvidersUtility.getProviderByEmailAndName(validatedData.data.email, "password", true);
         let errors = []
 
         // if exists
@@ -66,41 +67,68 @@ function handlePasswordAuthSubmission(): Action {
             return returnFailClientError(400, errors)
         }
 
-        console.log("password is valid");
+        // console.log("password is valid");
+
+        const deviceToken = TokensUtility.getDeviceToken(cookies);
+
+        if (!deviceToken) returnFailClientError(400, {
+            // Make the page reload or invalidate all
+            message: "Device token not found. Cookie issue. Reload the page"
+        });
+
+
+
 
         // get user devices
+
         // check if device exists with [userId, deviceToken]
+
         // if yes, delete that device
 
         // create a new one device 
+
+
+
         // create a new refresh token 
-        // set cookies
-        // return redirect to "/"
+        const authTokens = TokensUtility.generateAuthTokens({
+            username: passProvider?.user?.username as string,
+            id: passProvider?.user?.id as string,
+        });
+
+        // if RefreshToken/Device exists, delete it
+        // find by userId and deviceToken
+
+        const cleanedOldDeviceAndRefeshToken = await UserDeviceUtility.deleteByUserAndDeviceToken(passProvider.user.id as string, deviceToken as string);
+        console.log("Cleaned old device and refresh token", structuredClone(cleanedOldDeviceAndRefeshToken));
 
 
+        // create a new user device
+        const refreshAndDeviceData = {
+            userId: passProvider?.user?.id,
+            refreshToken: authTokens.refreshToken,
+            UserDevice: {
+                create: {
+                    userId: passProvider?.user?.id,
+                    deviceToken: deviceToken ?? "",
+                    deviceDataJson: `{"todo": "not implemented"}`,
+                }
+            }
+        }
+        const refreshTokenAndUserDevice = await RefreshTokenUtility.create(refreshAndDeviceData);
 
 
+        //  
+        if (!refreshTokenAndUserDevice) return returnFailServerError(500, {
+            message: "Failed to create refresh token and user device"
+        });
 
-        // // const tokens = await generateAuthTokens({
-        // //     id: theUser.id,
-        // //     username: theUser.username
 
-        // // });
+        console.log(`User:`, structuredClone(passProvider?.user), `logged in with refresh token:`, structuredClone(refreshTokenAndUserDevice));
 
-        // const tokens = await TokensUtility.generateAuthTokens({
-        //     id: theUser.id,
-        //     username: theUser.username
-        // });
+        // set auth cookies
+        TokensUtility.ensureAuthTokenCookie(cookies, authTokens, "password");
 
-        // const whileLoginToken = await AuthProvidersUtility.update(passProvider.id, {
-        //     refreshToken: tokens.refreshToken
-        // });
-        // console.log("WhileLoginToken", whileLoginToken);
-
-        // // await setAuthCookies(cookies, tokens, "password");
-        // TokensUtility.ensureAuthTokenCookie(cookies, tokens, "password");
-
-        // return redirect(307, "/");
+        return redirect(307, "/");
 
     }
 }

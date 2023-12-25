@@ -4,7 +4,8 @@ import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/sta
 import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import { decodeBase64TokenObject } from "$lib/auth/utils/common.server";
-import { UsersUtility } from "$lib/auth/utils/db.server";
+import { RefreshTokenUtility, UsersUtility } from "$lib/auth/utils/db.server";
+import type { RefreshToken } from "@prisma/client";
 
 
 
@@ -19,11 +20,13 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
     // Device Token
     if (!TokensUtility.checkDeviceTokenValidity(event.cookies)) TokensUtility.ensureDeviceTokenCookie(event.cookies);
 
-    if (!TokensUtility.getAuthToken(event.cookies)) {
-        return await resolve(event);
-    }
-
+    // Auth Token
     const userAuthTokens = TokensUtility.getAuthToken(event.cookies);
+
+    // No Auth Token
+    if (!userAuthTokens) return await resolve(event);
+
+
     const { access, refresh, provider } = decodeBase64TokenObject(userAuthTokens);
 
     if (!access || !refresh || !provider) {
@@ -54,28 +57,48 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
     const refreshT = await TokensUtility.checkRefreshTokenValidity(refresh);
     if (refreshT != null) {
         const { id, username } = refreshT;
+
         if (!id || !username) {
             TokensUtility.deleteAuthTokenCookie(event.cookies);
             return await resolve(event)
         };
 
         // Check if user exists
-        const user = await UsersUtility.get(id);
-        if (!user) {
+        // const user = await UsersUtility.get(id);
+        // no need to check user
+        // check if refreshtoken exists
+        const depRefreshToken = await RefreshTokenUtility.getByRefreshToken(refresh);
+
+        if (!depRefreshToken) {
             TokensUtility.deleteAuthTokenCookie(event.cookies);
-            TokensUtility.deleteDeviceTokenCookie(event.cookies);
             return await resolve(event)
-        } else {
-            // Generate new tokens
-
-            const tokens = await TokensUtility.generateAuthTokens({ id, username });
-            TokensUtility.ensureAuthTokenCookie(event.cookies, tokens, provider);
-
-            event.locals.user_id = id;
-            event.locals.user_username = username;
-            console.log("Valid Refresh token found ");
-            return await resolve(event);
         }
+
+
+        // if (!user) {
+        //     // Delete refresh token and device too
+        //     TokensUtility.deleteAuthTokenCookie(event.cookies);
+        //     TokensUtility.deleteDeviceTokenCookie(event.cookies);
+        //     return await resolve(event)
+        // } else {
+        // Generate new tokens
+
+        const { accessToken, refreshToken } = await TokensUtility.generateAuthTokens({ id, username });
+        // console.log("New tokens generated", { accessToken, refreshToken });
+        // update this to database
+        const updatedRefreshToken = await RefreshTokenUtility.updateByToken(refresh, {
+            refreshToken,
+        } as RefreshToken);
+
+
+        // });
+        TokensUtility.ensureAuthTokenCookie(event.cookies, { accessToken, refreshToken }, provider);
+
+        event.locals.user_id = id;
+        event.locals.user_username = username;
+        console.log("Valid Refresh token found && updated", updatedRefreshToken);
+        return await resolve(event);
+        // }
 
     }
 

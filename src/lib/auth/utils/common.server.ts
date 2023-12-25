@@ -81,30 +81,29 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 
 }
 
+// in TokensUtility
+// export async function validateToken(token: string, secret: string) {
+//     try {
+//         // decode
+//         // check if valid
 
-// These will go to JWTUtility
-export async function validateToken(token: string, secret: string) {
-    try {
-        // decode
-        // check if valid
+//         const decoded: any = await jwt.decode(token);
+//         if (!decoded) {
+//             return { valid: false, message: "could not decode token" };
+//         }
 
-        const decoded: any = await jwt.decode(token);
-        if (!decoded) {
-            return { valid: false, message: "could not decode token" };
-        }
+//         if (decoded.exp < Date.now() / 1000) {
+//             return { valid: false, message: "token expired" };
+//         }
 
-        if (decoded.exp < Date.now() / 1000) {
-            return { valid: false, message: "token expired" };
-        }
+//         const result: JWTPayload = await jwt.verify(token, secret) as JWTPayload;
+//         return { valid: true, data: decodeBase64TokenObject(result._data) };
+//     } catch (err) {
+//         // console.log(err);
+//     }
 
-        const result: JWTPayload = await jwt.verify(token, secret) as JWTPayload;
-        return { valid: true, data: decodeBase64TokenObject(result._data) };
-    } catch (err) {
-        // console.log(err);
-    }
-
-    return { valid: false, message: "could not verify token" };
-}
+//     return { valid: false, message: "could not verify token" };
+// }
 //     try {
 //         const decoded = await jwt.verify(token, JWT_ACCESS_SECRET);
 //         return decoded;
@@ -115,31 +114,31 @@ export async function validateToken(token: string, secret: string) {
 
 // }
 
-export function processCookie(tokens: Tokens, provider: oAuthProviders) {
-    const { accessToken, refreshToken } = tokens;
+// export function processCookie(tokens: Tokens, provider: oAuthProviders) {
+//     const { accessToken, refreshToken } = tokens;
 
-    return encodeBase64TokenObject({
-        access: accessToken,
-        refresh: refreshToken,
-        provider
-    });
+//     return encodeBase64TokenObject({
+//         access: accessToken,
+//         refresh: refreshToken,
+//         provider
+//     });
 
-}
+// }
 
 
-export async function setAuthCookies(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
+// export async function setAuthCookies(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
 
-    const cookieLoad = processCookie(tokens, provider);
+//     const cookieLoad = processCookie(tokens, provider);
 
-    cookies.set(JWT_COOKIE_NAME, cookieLoad, {
-        httpOnly: true,
-        secure: MODE === "PROD" ? true : false,
-        path: "/",
+//     cookies.set(JWT_COOKIE_NAME, cookieLoad, {
+//         httpOnly: true,
+//         secure: MODE === "PROD" ? true : false,
+//         path: "/",
 
-        sameSite: strict ? "strict" : "lax",
-        maxAge: convertNumberSuffixToSecond(JWT_REFRESH_EXPIRES)
-    });
-}
+//         sameSite: strict ? "strict" : "lax",
+//         maxAge: convertNumberSuffixToSecond(JWT_REFRESH_EXPIRES)
+//     });
+// }
 
 // cookies cookie hoye jabe
 export async function deleteAuthCookies(cookies: Cookies) {

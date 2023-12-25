@@ -1,5 +1,5 @@
 import prisma from "$lib/server/db/prisma";
-import type { OauthCredentials, RefreshToken, User, UserDevice } from "@prisma/client";
+import type { OauthCredentials, Prisma, PrismaClient, RefreshToken, User, UserDevice } from "@prisma/client";
 import { resultOrNull } from "./common.server";
 
 
@@ -98,7 +98,7 @@ export class AuthProvidersUtility {
         })
     }
 
-    static async getProviderByEmailAndName(providerEmail: string, provider: string) {
+    static async getProviderByEmailAndName(providerEmail: string, provider: string, includeUser: boolean = false) {
         return resultOrNull(async () => {
             const token = await prisma.oauthCredentials.findUnique({
                 where: {
@@ -106,6 +106,9 @@ export class AuthProvidersUtility {
                         provider,
                         providerEmail
                     }
+                },
+                include: {
+                    user: includeUser
                 }
             })
             return token;
@@ -115,26 +118,107 @@ export class AuthProvidersUtility {
 
 
 export class UserDeviceUtility {
-    static async create(data: UserDevice) {
+    // static async create(data: UserDevice) {
+    //     return resultOrNull(async () => {
+    //         const token = await prisma.userDevice.create({
+    //             data: data,
+    //             include: include
+    //         })
+    //         return token;
+    //     })
+    // }
+
+    static async delete(id: string) {
         return resultOrNull(async () => {
-            const token = await prisma.userDevice.create({
-                data: data
+            const token = await prisma.userDevice.delete({
+                where: {
+                    id: id,
+                }
+            })
+            return token;
+        })
+    }
+
+    static async deleteByUserAndDeviceToken(userId: string, deviceToken: string) {
+        return resultOrNull(async () => {
+            const token = await prisma.userDevice.delete({
+                where: {
+                    userId_deviceToken: {
+                        userId,
+                        deviceToken
+                    }
+                },
+                include: {
+                    RefreshToken: true
+                }
             })
             return token;
         })
     }
 }
 
+export class RefreshTokenUtility {
 
-// export class RefreshTokenUtility {
-//     static async create(data: RefreshToken, deviceTokenData: UserDevice) {
-//         return resultOrNull(async () => {
-//             const token = await prisma.refreshToken.create({
-//                 data: data,
+    static async create(data: any) {
+        return resultOrNull(async () => {
+            return await prisma.refreshToken.create({
+                data: data
+            })
+        })
+    }
+    static async update(id: string, data: RefreshToken) {
+        return resultOrNull(async () => {
+            await prisma.refreshToken.update({
+                where: {
+                    id: id
+                },
+                data: data
+            })
+        })
+    }
+
+    static async updateByToken(token: string, data: RefreshToken) {
+        return resultOrNull(async () => {
+            await prisma.refreshToken.update({
+                where: {
+                    refreshToken: token
+                },
+                data: data
+            })
+        })
+    }
+
+    static async delete(id: string) {
+        return resultOrNull(async () => {
+            await prisma.refreshToken.delete({
+                where: {
+                    id: id
+                }
+            })
+        })
+    }
+
+    static async deleteByToken(token: string) {
+        return resultOrNull(async () => {
+            return await prisma.refreshToken.delete({
+                where: {
+                    refreshToken: token
+                }
+            })
+        })
+    }
+
+    static async getByRefreshToken(refreshToken: string) {
+        return resultOrNull(async () => {
+            const token = await prisma.refreshToken.findUnique({
+                where: {
+                    refreshToken: refreshToken
+                }
+            })
+            return token;
+        })
+    }
 
 
-//             })
-//             return token;
-//         })
-//     }
-// }
+}
+

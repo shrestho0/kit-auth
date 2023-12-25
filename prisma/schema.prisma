@@ -80,11 +80,15 @@ model UserDevice {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  RefreshToken RefreshToken[]
+  // refreshToken
+  // RefreshToken RefreshToken[]
+  refreshTokenId String?
+  RefreshToken   RefreshToken? @relation(fields: [refreshTokenId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceToken])
   @@index([userId])
   @@index([userId, deviceToken])
+  @@index([refreshTokenId])
 }
 
 model RefreshToken {
@@ -94,12 +98,9 @@ model RefreshToken {
   userId       String
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  deviceTokenId String
-  deviceToken   UserDevice @relation(fields: [deviceTokenId], references: [id], onDelete: Cascade)
-
-  updateAt DateTime @updatedAt
+  updateAt   DateTime     @updatedAt
+  UserDevice UserDevice[]
 
   @@index([refreshToken])
   @@index([userId])
-  @@index([deviceTokenId])
 }
