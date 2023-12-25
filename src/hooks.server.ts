@@ -1,114 +1,143 @@
-import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/static/private";
-import { RefreshTokenUtility, findUniqueUserWithID, findUsersWithEmailOrUsername, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
-import { decodeBase64TokenObject, deleteAuthCookies, generateAuthTokens, setAuthCookies, validateToken } from "$lib/utils/utils.server";
 import type { Handle } from "@sveltejs/kit";
+import { sequence } from "@sveltejs/kit/hooks";
+import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/static/private";
+import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
+import { TokensUtility } from "$lib/auth/utils/tokens.server";
+import { decodeBase64TokenObject } from "$lib/auth/utils/common.server";
+import { UsersUtility } from "$lib/auth/utils/db.server";
 
-export const handle: Handle = async ({ event, resolve }) => {
-    // it's inside server, that's okay ig
-    console.log("inside server hook");
-    const authCookie = event.cookies.get(JWT_COOKIE_NAME)
 
 
-    if (authCookie) {
-        console.log("cookie exists");
-        try {
+const AuthHandler: Handle = async ({ event, resolve }) => {
 
-            const { access, refresh, provider } = decodeBase64TokenObject(authCookie);
-            if (access && refresh && provider) {
-                // if (provider === "password") {
+    // do something
 
-                try {
-                    let accessV = await validateToken(access, JWT_ACCESS_SECRET);
-                    // user is valid here
-                    console.log("access", accessV.valid, accessV.data);
-                    // send users to specific adapters maybe
-                    // TODO: check for user in database
+    // check for cookies && handle accordingly
 
-                    if (accessV.valid) {
-                        event.locals.user_id = accessV.data.id;
-                        event.locals.user_username = accessV.data.username;
-                        return await resolve(event);;
-                    } else {
-                        // access er meyad shesh
-                        // check refresh and update tokens
-                        let refreshV = await validateToken(refresh, JWT_REFRESH_SECRET);
-                        console.log("refresh", refreshV.valid, refreshV.data);
-                        if (refreshV.valid) {
+    /* Cookies */
 
-                            // shob thik ache
-                            // update tokens
-                            // check if the user exists now. if not, delete cookies
-                            const someUser = await findUniqueUserWithID(refreshV.data.id);
-                            if (!someUser) {
-                                await deleteAuthCookies(event.cookies);
-                                event.locals.user_id = null;
-                                event.locals.user_username = null;
-                                return await resolve(event);
-                            }
-                            // user ache
+    // Device Token
+    if (!TokensUtility.checkDeviceTokenValidity(event.cookies)) TokensUtility.ensureDeviceTokenCookie(event.cookies);
 
-                            // delete hobe
-                            // const oauthCredentials = someUser.oauthCredentials.find((cred) => cred.provider === provider);
-                            // const theToken = await getRefreshToken({
-                            //     userId: refreshV.data.id,
-                            // })
-                            const theToken = await RefreshTokenUtility.getByUserId(refreshV.data.id);
-                            RefreshTokenUtility
-                            if (theToken) {
-                                // normally thakar kotha
-                                console.log("user ache", someUser, theToken);
-
-                                // generated new token
-                                const newTokens = await generateAuthTokens({
-                                    id: refreshV.data.id,
-                                    username: refreshV.data.username
-                                });
-
-                                // update refresh token
-
-                                // delete hobe
-                                // await updateOAuthCredentials(oauthCredentials.id, {
-                                //     refreshToken: newTokens.refreshToken,
-                                // } as OauthCredentials);
-
-                                await RefreshTokenUtility.update(theToken.id, {
-                                    refreshToken: newTokens.refreshToken
-                                })
-
-                                event.locals.user_id = refreshV.data.id;
-                                event.locals.user_username = refreshV.data.username;
-
-                                setAuthCookies(event.cookies, newTokens, provider);
-                            }
-                        }
-                        console.log("refreshed", refreshV.valid, refreshV.data);
-                    }
-
-                } catch (err) {
-                    await deleteAuthCookies(event.cookies);
-                }
-            } else {
-                console.log("has cookies but not able to find tokens", access, refresh, provider);
-                // just continues
-            }
-
-        } catch (err) {
-            console.log(err);
-            await deleteAuthCookies(event.cookies);
-        }
-    } else {
-        // cookie doesn't exists
-        console.log("no cookie found, anonymous user");
-        console.log(event.cookies.getAll())
+    if (!TokensUtility.getAuthToken(event.cookies)) {
+        return await resolve(event);
     }
 
-    // check user's credentials with cookies
-    // // get cookies
-    // // check provider
-    // // check token
-    // // update auth state
-    // // update user
+    const userAuthTokens = TokensUtility.getAuthToken(event.cookies);
+    const { access, refresh, provider } = decodeBase64TokenObject(userAuthTokens);
 
-    const response = await resolve(event);
-    return response;
-};
+    if (!access || !refresh || !provider) {
+        TokensUtility.deleteAuthTokenCookie(event.cookies);
+        return await resolve(event);
+    };
+
+
+    // Checking Access Token
+    const accessT = await TokensUtility.checkAccessTokenValidity(access);
+
+    if (accessT != null) {
+        const { id, username, } = accessT;
+
+        if (!id || !username) {
+            TokensUtility.deleteAuthTokenCookie(event.cookies);
+            return await resolve(event)
+        };
+
+        event.locals.user_id = id;
+        event.locals.user_username = username;
+        console.log("Valid Access token found ");
+        return await resolve(event);
+    }
+
+    // Access Token Expired
+
+    const refreshT = await TokensUtility.checkRefreshTokenValidity(refresh);
+    if (refreshT != null) {
+        const { id, username } = refreshT;
+        if (!id || !username) {
+            TokensUtility.deleteAuthTokenCookie(event.cookies);
+            return await resolve(event)
+        };
+
+        // Check if user exists
+        const user = await UsersUtility.get(id);
+        if (!user) {
+            TokensUtility.deleteAuthTokenCookie(event.cookies);
+            TokensUtility.deleteDeviceTokenCookie(event.cookies);
+            return await resolve(event)
+        } else {
+            // Generate new tokens
+
+            const tokens = await TokensUtility.generateAuthTokens({ id, username });
+            TokensUtility.ensureAuthTokenCookie(event.cookies, tokens, provider);
+
+            event.locals.user_id = id;
+            event.locals.user_username = username;
+            console.log("Valid Refresh token found ");
+            return await resolve(event);
+        }
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Refresh
+
+
+
+
+
+
+
+    // check if device token exists
+
+
+
+    // else, do nothing
+
+
+    console.log("Unhandeled case, deleting cookies");
+    TokensUtility.deleteAuthTokenCookie(event.cookies);
+    const response = await resolve(event)
+    return response
+}
+
+// const DeviceTokenHandler: Handle = async ({ event, resolve }) => {
+
+//     console.log("inside device token handler");
+
+//     // check if device token exists
+//     // check if cookie is valid
+//     if (!ServerSideCookieUtility.getDeviceToken(event.cookies)) {
+//         //  if not, generate one
+//         // set that to the cookie with no expiry
+//         console.log("device token nei");
+//         const deviceToken = ServerSideCookieUtility.generateDeviceToken();
+//         ServerSideCookieUtility.setDeviceToken(event.cookies, deviceToken);
+//     }
+//     // else we don't care
+
+//     return await resolve(event);
+// }
+
+
+
+export const handle: Handle = sequence(AuthHandler);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { applyAction, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { capitalizeFirstLetter, toTitleCase } from '$utils/utils.common';
+	import { capitalizeFirstLetter, toTitleCase } from '$auth/utils/common';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	async function enhancedOAuthSignIn() {

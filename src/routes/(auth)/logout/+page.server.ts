@@ -1,8 +1,7 @@
-import { JWT_COOKIE_NAME } from "$env/static/private";
-import { returnFailClientError } from "$lib/utils/error-utils.server";
-import { deleteAuthCookies } from "$lib/utils/utils.server";
-import { fail, json, redirect, type Actions, type RequestHandler } from "@sveltejs/kit";
+import { redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
+import { TokensUtility } from "$lib/auth/utils/tokens.server";
+
 
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -15,13 +14,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
     default: async ({ request, locals, cookies }) => {
         if (locals.user_id && locals.user_username) {
-            deleteAuthCookies(cookies);
-            // locals.user_id = null;
-            // locals.user_username = null;
+
+            TokensUtility.deleteAuthTokenCookie(cookies);
+
+
+            // TODO: Delete refresh token from db
+            // TODO: Delete device token from db
+
+
             return redirect(307, "/login");
         }
-        return redirect(307, "/404");
-
 
     }
 };

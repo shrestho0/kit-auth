@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { applyAction, enhance } from '$app/forms';
 	import { goto, invalidateAll, pushState } from '$app/navigation';
+	import { dummyUsers } from '$auth/dummy-data';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { onMount } from 'svelte';
 
@@ -11,31 +12,6 @@
 		errorMsg['password'] = '';
 	}
 
-	// async function enhancedSignup() {
-	// 	async ({ result }: any) => {
-	// 		setErrorMsg();
-	// 		console.log('Formaction result data', result.data, result);
-	// 		if (result.type == 'redirect') {
-	// 			// goto(result.location);
-	// 			await applyAction(result);
-	// 			invalidateAll();
-	// 			goto(result.location);
-	// 		} else if (result.type == 'failure') {
-	// 			if (!result.data.success) {
-	// 				result.data.errors.forEach((error: any) => {
-	// 					console.log(error);
-	// 					if (error.path == 'username') errorMsg.username = error.message;
-	// 					if (error.path == 'email') errorMsg.email = error.message;
-	// 					if (error.path == 'password') errorMsg.password = error.message;
-	// 					// errorMsg[error.param] = error.msg;
-	// 				});
-	// 			}
-
-	// 			await applyAction(result);
-	// 			invalidateAll();
-	// 		}
-	// 	};
-	// }
 	function enhancedSignup() {
 		return async ({ result }: any) => {
 			setErrorMsg();
@@ -63,10 +39,41 @@
 		};
 	}
 
+	const newUserData = {
+		username: '',
+		email: '',
+		password: ''
+	};
+
 	onMount(() => {
 		setErrorMsg();
 	});
 </script>
+
+<div class="flex gap-3 items-center justify-center p-4 my-4 mx-8 bg-black/10 rounded font-mono">
+	{#each dummyUsers as user}
+		<button
+			class="btn btn-sm btn-primary"
+			on:click={() => {
+				newUserData.username = user.username;
+				newUserData.email = user.email;
+				newUserData.password = user.password;
+			}}
+		>
+			{user.username}
+		</button>
+	{/each}
+	<button
+		class="btn btn-sm btn-primary tracking-wide"
+		on:click={() => {
+			newUserData.username = '';
+			newUserData.email = '';
+			newUserData.password = '';
+		}}
+	>
+		[[ Reset ]]
+	</button>
+</div>
 
 <div class="w-full max-w-sm p-6 m-auto mx-auto bg-white rounded-lg shadow-md -dark:bg-gray-800">
 	<div class="flex justify-center mx-auto">
@@ -77,6 +84,7 @@
 		<div>
 			<label for="username" class="block text-sm text-gray-800 -dark:text-gray-200">Username</label>
 			<input
+				bind:value={newUserData.username}
 				name="username"
 				type="text"
 				class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border rounded-lg -dark:bg-gray-800 -dark:text-gray-300 -dark:border-gray-600 focus:border-blue-400 -dark:focus:border-blue-300 focus:ring-blue-300 focus:outline-none focus:ring focus:ring-opacity-40"
@@ -90,6 +98,7 @@
 		<div class="mt-4">
 			<label for="email" class="block text-sm text-gray-800 -dark:text-gray-200">Email</label>
 			<input
+				bind:value={newUserData.email}
 				name="email"
 				type="email"
 				class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border rounded-lg -dark:bg-gray-800 -dark:text-gray-300 -dark:border-gray-600 focus:border-blue-400 -dark:focus:border-blue-300 focus:ring-blue-300 focus:outline-none focus:ring focus:ring-opacity-40"
@@ -111,6 +120,7 @@
 			</div>
 
 			<input
+				bind:value={newUserData.password}
 				name="password"
 				type="password"
 				class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border rounded-lg -dark:bg-gray-800 -dark:text-gray-300 -dark:border-gray-600 focus:border-blue-400 -dark:focus:border-blue-300 focus:ring-blue-300 focus:outline-none focus:ring focus:ring-opacity-40"
@@ -170,9 +180,9 @@
 	</div>
 
 	<p class="mt-8 text-xs font-light text-center text-gray-400">
-		Don't have an account? <a
-			href="/register"
-			class="font-medium text-gray-700 -dark:text-gray-200 hover:underline">Create One</a
+		Already have an account? <a
+			href="/login"
+			class="font-medium text-gray-700 -dark:text-gray-200 hover:underline">Login Here</a
 		>
 	</p>
 </div>

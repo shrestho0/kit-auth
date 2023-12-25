@@ -2,12 +2,9 @@
 	import { browser } from '$app/environment';
 	import { applyAction, enhance } from '$app/forms';
 	import { goto, invalidateAll, pushState } from '$app/navigation';
-	import { userAuthStore } from '$lib/stores/store';
-	import type { ActionResult } from '@sveltejs/kit';
 	import { onDestroy, onMount } from 'svelte';
 	import OAuthForm from '$lib/components/OAuthForm.svelte';
 	import { Github } from 'lucide-svelte';
-	import { deleteDeviceFingerprint, setDeviceFingerprint } from '$lib/utils/utils.common';
 
 	const errorMsg: any = {};
 	function setErrorMsg() {
@@ -24,7 +21,6 @@
 				invalidateAll();
 				// return goto(result.location);
 				window.location.href = result.location ?? '/';
-				deleteDeviceFingerprint();
 				return;
 			} else if (result.type == 'failure') {
 				if (!result.data.success) {
@@ -66,7 +62,6 @@
 
 	onMount(() => {
 		// TODO: delete this cookie form every other pages
-		setDeviceFingerprint();
 		// subscibeToAuthStore();
 		setErrorMsg();
 	});

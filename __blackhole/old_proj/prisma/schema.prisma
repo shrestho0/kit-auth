@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "sqlite"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id       String  @id @default(uuid())
+  username String  @unique
+  name     String?
+
+  email        String? // will be removed
+  passwordHash String? // will be removed
+
+  // email_verified Boolean @default(false) // default provider:password false, provider:oauth true
+
+  verified Boolean  @default(false) // default provider:password false, provider:oauth true
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  oauthCredentials OauthCredentials[]
+  RefreshTokens    RefreshTokens[]
+  UserDevices      UserDeviceTokens[]
+}
+
+// rename this to AuthProviders
+model OauthCredentials {
+  id String @id @default(uuid())
+
+  provider      String
+  providerEmail String // new, for the email from provider
+
+  passwordHash      String? // new, for password provider only
+  oauthRefreshToken String? @unique
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt // gives users last token refresh time
+
+  @@unique([provider, providerEmail])
+  @@index([provider, providerEmail])
+  @@index([userId])
+}
+
+model TempUser {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  username String?
+  name     String?
+
+  provider         String
+  authAccessToken  String?
+  authRefreshToken String?
+
+  deviceFingerprint String?
+  oauthIdToken      String?
+  oauthAccessToken  String?
+  oauthRefreshToken String?
+  createAt          DateTime @default(now())
+
+  @@index([email])
+}
+
+model TempData {
+  id      String @id @default(uuid())
+  jsonStr String // will save json here
+}
+
+model UserDeviceTokens {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceToken    String @unique
+  deviceDataJson String // will save json here
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  refreshToken RefreshTokens?
+
+  @@unique([userId, deviceToken])
+  @@index([userId])
+  @@index([userId, deviceToken])
+}
+
+model RefreshTokens {
+  id String @id @default(uuid())
+
+  refreshToken String @unique
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceTokenId String           @unique
+  deviceToken   UserDeviceTokens @relation(fields: [deviceTokenId], references: [id], onDelete: Cascade)
+
+  updateAt DateTime @updatedAt
+
+  @@index([refreshToken])
+  @@index([userId])
+  @@index([deviceTokenId])
+}

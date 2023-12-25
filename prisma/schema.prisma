@@ -8,41 +8,18 @@ datasource db {
   relationMode = "prisma"
 }
 
-// model Post {
-//   id        Int      @id @default(autoincrement())
-//   title     String
-//   content   String?
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//   published Boolean  @default(false)
-//   author    User?    @relation(fields: [authorId], references: [id])
-//   authorId  Int?
-// }
-
-// CREATE TABLE Users (
-//     user_id TEXT PRIMARY KEY,
-//     username TEXT NOT NULL UNIQUE,
-//     email TEXT NOT NULL UNIQUE,
-
-//     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-//     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-// );
-
 model User {
   id       String  @id @default(uuid())
   username String  @unique
   name     String?
 
-  email        String? // will be removed
-  passwordHash String? // will be removed
+  verified Boolean  @default(false) // default provider:password false, provider:oauth true
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
 
-  // email_verified Boolean @default(false) // default provider:password false, provider:oauth true
-
-  verified         Boolean            @default(false) // default provider:password false, provider:oauth true
-  createAt         DateTime           @default(now())
-  updateAt         DateTime           @updatedAt
   oauthCredentials OauthCredentials[]
-  RefreshTokens    RefreshTokens[]
+  RefreshTokens    RefreshToken[]
+  UserDevices      UserDevice[]
 }
 
 // rename this to AuthProviders
@@ -91,15 +68,38 @@ model TempData {
   jsonStr String // will save json here
 }
 
-model RefreshTokens {
+model UserDevice {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceToken    String // multiple account can have same device / device token
+  deviceDataJson String // will save json here
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  RefreshToken RefreshToken[]
+
+  @@unique([userId, deviceToken])
+  @@index([userId])
+  @@index([userId, deviceToken])
+}
+
+model RefreshToken {
   id String @id @default(uuid())
 
   refreshToken String @unique
   userId       String
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  deviceTokenId String
+  deviceToken   UserDevice @relation(fields: [deviceTokenId], references: [id], onDelete: Cascade)
+
   updateAt DateTime @updatedAt
 
   @@index([refreshToken])
   @@index([userId])
+  @@index([deviceTokenId])
 }

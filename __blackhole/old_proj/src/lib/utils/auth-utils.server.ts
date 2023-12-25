@@ -1,11 +1,12 @@
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
+import { DEVICE_TOKEN_COOKIE_NAME, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MODE, OAUTH_REDIRECT } from "$env/static/private";
 import prisma from "$lib/server/prisma";
 import { RSAKey } from "$lib/server/rsa-key";
-import { Prisma, type OauthCredentials, type PrismaClient, type RefreshTokens, type User, type TempData, type TempUser } from "@prisma/client";
+import { Prisma, type OauthCredentials, type PrismaClient, type RefreshTokens, type User, type TempData, type TempUser, type UserDeviceTokens } from "@prisma/client";
 import { google } from "googleapis";
 import { RSAKeyError } from "./error-utils.server";
 import { resultOrNull } from "./utils.server";
-import { type Action } from "@sveltejs/kit";
+import { type Action, type Cookies } from "@sveltejs/kit";
+import { ulid } from "ulid";
 
 
 
@@ -367,21 +368,27 @@ export async function updateOAuthCredentials(providerId: string, data: OauthCred
 
 export class RefreshTokenUtility {
 
-    static async create(data: RefreshTokens) {
+    static async create(data: RefreshTokens, include?: Prisma.RefreshTokensInclude) {
         return resultOrNull(async () => {
+            // const token = await prisma.refreshTokens.create({
+            //     data: data
+            // })
             const token = await prisma.refreshTokens.create({
-                data: data
+                data: data,
+                include: include
             })
+
             return token;
         })
     }
-    static async update(id: string, data: any) {
+    static async update(id: string, data: any, include?: Prisma.RefreshTokensInclude) {
         return resultOrNull(async () => {
             const token = await prisma.refreshTokens.update({
                 where: {
                     id: id
                 },
-                data: data
+                data: data,
+                include: include
             })
             return token;
         })
@@ -397,20 +404,22 @@ export class RefreshTokenUtility {
             return token;
         })
     }
+
     static getByToken(theToken: string) {
         return resultOrNull(async () => {
             return await prisma.refreshTokens.findUnique({
                 where: {
-                    refreshToken: theToken
+                    refreshToken: theToken,
                 }
             })
-
         })
     }
 
+    // refactor this
+    // get by userid and device token
     static getByUserId(userId: string) {
         return resultOrNull(async () => {
-            return await prisma.refreshTokens.findFirst({
+            return await prisma.userDeviceTokens.findFirst({
                 where: {
                     userId: userId
                 }
@@ -419,50 +428,6 @@ export class RefreshTokenUtility {
         })
     }
 
-    // static async getRefreshToken(findWith: { tokenId?: string, refreshToken?: string, userId?: string }) {
-
-    //     const { tokenId, refreshToken, userId } = findWith;
-
-    //     if (!tokenId && !refreshToken && !userId) {
-    //         throw new Error("No tokenId or refreshToken provided");
-    //     }
-
-
-
-
-    //     try {
-
-    //         if (tokenId) {
-    //             const token = await prisma.refreshTokens.findUnique({
-    //                 where: {
-    //                     id: tokenId
-    //                 }
-    //             })
-    //             return token;
-    //         }
-    //         if (refreshToken) {
-
-    //             const token = await prisma.refreshTokens.findUnique({
-    //                 where: {
-    //                     refreshToken: refreshToken
-    //                 }
-    //             })
-    //             return token;
-    //         }
-    //         if (userId) {
-    //             const token = await prisma.refreshTokens.findFirst({
-    //                 where: {
-    //                     userId: userId
-    //                 }
-    //             })
-    //             return token;
-    //         }
-
-    //     } catch (err) {
-    //         console.log(err);
-    //         return null
-    //     }
-    // }
 
 }
 
@@ -571,4 +536,31 @@ export function handleGoogeAuthSubmission(): Action {
             authUrl
         };
     };
+}
+
+
+export class ServerSideCookieUtility {
+
+    static getDeviceToken(cookies: Cookies) {
+        try {
+            return cookies.get(DEVICE_TOKEN_COOKIE_NAME);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    static generateDeviceToken() {
+        return ulid();
+    }
+
+    static setDeviceToken(cookies: Cookies, token: string) {
+        cookies.set(DEVICE_TOKEN_COOKIE_NAME, token, {
+            path: "/",
+            maxAge: 31536e3, // 10 years
+            httpOnly: true,
+            sameSite: "strict",
+            secure: MODE ?? "DEV" ? false : true
+        });
+    }
+
 }

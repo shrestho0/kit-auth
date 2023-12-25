@@ -1,18 +1,22 @@
 
-import prisma from "$lib/server/prisma";
-import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
-import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, createOAuthCredentials, findUsersWithEmailOrUsername } from "$lib/utils/auth-utils.server";
-import { comparePassword, generateAuthTokens, hashPassword, resultOrNull, setAuthCookies } from "$lib/utils/utils.server";
-import { userRegisterSchema } from "$lib/validations/auth-validation";
-import { fail, type Actions, redirect } from "@sveltejs/kit";
-import type { OauthCredentials, RefreshTokens } from "@prisma/client";
-import type { PageServerLoad } from "./$types";
+// import prisma from "$lib/server/prisma";
+import { returnFailClientError, returnFailServerError } from "$auth/utils/errors.server";
+import { userRegisterSchema } from "$auth/validation";
+import { generateAuthTokens, hashPassword } from "$lib/auth/utils/common.server";
+import { UsersUtility } from "$lib/auth/utils/db.server";
+import { redirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
+import type { OauthCredentials, User } from "@prisma/client";
+import { TokensUtility } from "$lib/auth/utils/tokens.server";
+import prisma from "$lib/server/db/prisma";
+
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (locals.user_id && locals.user_username) {
         return redirect(307, "/");
     }
 };
+
 
 export const actions: Actions = {
     password: async ({ request, locals, cookies }) => {
@@ -52,35 +56,60 @@ export const actions: Actions = {
 
 
 
+
         const newUserData = {
             username: validatedData.data.username,
             oauthCredentials: {
                 create: {
                     provider: "password",
                     providerEmail: validatedData.data.email,
-                    passwordHash: await hashPassword(validatedData.data.password)
+                    passwordHash: await hashPassword(validatedData.data.password),
+
                 }
-            },
-        }
+            } as unknown as OauthCredentials,
+
+
+        } as unknown as User;
+
+
+
+
 
         const newUser = await UsersUtility.create(newUserData);
-
         if (!newUser) return returnFailServerError(500, {
             message: "Failed to create user"
         });
 
-        const tokens = await generateAuthTokens({
+
+
+        const deviceToken = TokensUtility.getDeviceToken(cookies);
+
+        const authTokens = TokensUtility.generateAuthTokens({
             username: validatedData.data.username,
             id: newUser.id
         });
 
-        await RefreshTokenUtility.create({
-            userId: newUser.id,
-            refreshToken: tokens.refreshToken,
-        } as RefreshTokens)
 
+        const userDevice = await prisma.userDevice.create({
+            data: {
+                deviceToken: deviceToken ?? "",
+                userId: newUser.id,
+                deviceDataJson: "pore hobe",
+            }
+        })
 
-        await setAuthCookies(cookies, tokens, "password");
+        const refreshToken = await prisma.refreshToken.create({
+            data: {
+                userId: newUser.id,
+                refreshToken: authTokens.refreshToken,
+                deviceTokenId: userDevice.id
+            }
+
+        })
+
+        console.log(`User: ${structuredClone(newUser)} created with refresh token: ${structuredClone(refreshToken)} and device: ${structuredClone(userDevice)}`);
+
+        TokensUtility.ensureAuthTokenCookie(cookies, authTokens, "password");
 
         return redirect(307, "/");
 

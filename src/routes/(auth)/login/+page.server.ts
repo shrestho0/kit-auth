@@ -1,13 +1,21 @@
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
-import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, generateGoogleAuthUrl, handleGoogeAuthSubmission, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
-import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
-import { comparePassword, generateAuthTokens, setAuthCookies } from "$lib/utils/utils.server";
-import { userLoginSchema } from "$lib/validations/auth-validation";
-import type { OauthCredentials } from "@prisma/client";
-import { fail, type Actions, redirect } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+// import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
+// import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, generateGoogleAuthUrl, handleGoogeAuthSubmission, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
+// import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
+// import { comparePassword, generateAuthTokens, setAuthCookies } from "$lib/utils/utils.server";
+// import { userLoginSchema } from "$lib/validations/auth-validation";
+// import type { OauthCredentials } from "@prisma/client";
+// import { fail, type Actions, redirect } from "@sveltejs/kit";
+// import type { PageServerLoad } from "./$types";
 
 import { google } from "googleapis";
+import type { PageServerLoad } from "./$types";
+import { redirect, type Actions, type Action, fail } from "@sveltejs/kit";
+import type { OauthCredentials } from "@prisma/client";
+import { userLoginSchema } from "$lib/auth/validation";
+import { AuthProvidersUtility, UsersUtility } from "$lib/auth/utils/db.server";
+import { returnFailClientError, returnFailServerError } from "$lib/auth/utils/errors.server";
+import { comparePassword, generateAuthTokens } from "$lib/auth/utils/common.server";
+import { TokensUtility } from "$lib/auth/utils/tokens.server";
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (locals.user_id && locals.user_username) {
@@ -16,7 +24,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-    password: async ({ request, locals, cookies }) => {
+    password: handlePasswordAuthSubmission(),
+
+    // google: handleGoogeAuthSubmission(),
+};
+
+
+function handlePasswordAuthSubmission(): Action {
+    return async ({ request, locals, cookies }) => {
+
 
         const regData = Object.fromEntries(await request.formData());
 
@@ -52,27 +68,39 @@ export const actions: Actions = {
 
         console.log("password is valid");
 
-        // get user by id
-        const theUser = await UsersUtility.get(passProvider.userId);
-        if (!theUser) return returnFailServerError();
+        // get user devices
+        // check if device exists with [userId, deviceToken]
+        // if yes, delete that device
 
-        const tokens = await generateAuthTokens({
-            id: theUser.id,
-            username: theUser.username
-
-        });
-
-        await AuthProvidersUtility.update(passProvider.id, {
-            refreshToken: tokens.refreshToken
-        });
-
-        await setAuthCookies(cookies, tokens, "password");
-
-        return redirect(307, "/");
-
-    },
-
-    google: handleGoogeAuthSubmission(),
-};
+        // create a new one device 
+        // create a new refresh token 
+        // set cookies
+        // return redirect to "/"
 
 
+
+
+
+        // // const tokens = await generateAuthTokens({
+        // //     id: theUser.id,
+        // //     username: theUser.username
+
+        // // });
+
+        // const tokens = await TokensUtility.generateAuthTokens({
+        //     id: theUser.id,
+        //     username: theUser.username
+        // });
+
+        // const whileLoginToken = await AuthProvidersUtility.update(passProvider.id, {
+        //     refreshToken: tokens.refreshToken
+        // });
+        // console.log("WhileLoginToken", whileLoginToken);
+
+        // // await setAuthCookies(cookies, tokens, "password");
+        // TokensUtility.ensureAuthTokenCookie(cookies, tokens, "password");
+
+        // return redirect(307, "/");
+
+    }
+}
