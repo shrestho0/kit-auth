@@ -98,7 +98,9 @@ function handlePasswordAuthSubmission(): Action {
         // if RefreshToken/Device exists, delete it
         // find by userId and deviceToken
 
-        const cleanedOldDeviceAndRefeshToken = await UserDeviceUtility.deleteByUserAndDeviceToken(passProvider.user.id as string, deviceToken as string);
+
+
+        const cleanedOldDeviceAndRefeshToken = await UserDeviceUtility.deleteIfExistsByUserAndDeviceToken(passProvider.user.id as string, deviceToken as string);
         console.log("Cleaned old device and refresh token", structuredClone(cleanedOldDeviceAndRefeshToken));
 
 

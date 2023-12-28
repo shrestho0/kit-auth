@@ -52,7 +52,7 @@ export class TokensUtility {
     }
 
     static async ensureAuthTokenCookie(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
-        console.log("ensureAuthTokenCookie", tokens, provider);
+        // console.log("ensureAuthTokenCookie", tokens, provider);
         const cookieLoad = this.processCookie(tokens, provider);
 
         cookies.set(JWT_COOKIE_NAME, cookieLoad, {

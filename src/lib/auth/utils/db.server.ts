@@ -139,22 +139,43 @@ export class UserDeviceUtility {
         })
     }
 
-    static async deleteByUserAndDeviceToken(userId: string, deviceToken: string) {
+
+    static async deleteIfExistsByUserAndDeviceToken(userId: string, deviceToken: string) {
         return resultOrNull(async () => {
-            const token = await prisma.userDevice.delete({
+            if (!userId || !deviceToken) return null;
+            const oldDevices = await prisma.userDevice.findFirst({
                 where: {
-                    userId_deviceToken: {
-                        userId,
-                        deviceToken
-                    }
-                },
-                include: {
-                    RefreshToken: true
+                    userId: userId,
+                    deviceToken: deviceToken
                 }
             })
-            return token;
+            if (!oldDevices) return null;
+            const deletedOldDevice = await prisma.userDevice.delete({
+                where: {
+                    id: oldDevices.id
+                }
+            })
+            console.log("deleted old device", structuredClone(deletedOldDevice));
+            if (!deletedOldDevice) return false;
+
+            // const token = await prisma.userDevice.delete({
+            //     where: {
+            //         userId_deviceToken: {
+            //             userId,
+            //             deviceToken
+            //         }
+            //     },
+            //     include: {
+            //         RefreshToken: true
+            //     }
+            // })
+            return true;
         })
     }
+
+
+
+
 }
 
 export class RefreshTokenUtility {
