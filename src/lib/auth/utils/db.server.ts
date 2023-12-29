@@ -80,11 +80,12 @@ export class AuthProvidersUtility {
     // TODO: rename this to findmanyByProviderEmail
     static async getByProviderEmail(providerEmail: string) {
         return resultOrNull(async () => {
-            const token = await prisma.oauthCredentials.findMany({
+            const token: OauthCredentials[] = await prisma.oauthCredentials.findMany({
                 where: {
                     providerEmail: providerEmail
                 }
             })
+            if (token.length === 0) return null;
             return token;
         })
     }
@@ -94,6 +95,7 @@ export class AuthProvidersUtility {
             const token = await prisma.oauthCredentials.findMany({
                 where: { userId: userId },
             })
+
             return token;
         })
     }
@@ -111,7 +113,10 @@ export class AuthProvidersUtility {
                     user: includeUser
                 }
             })
-            return token;
+            if (token?.id) {
+                return token;
+            }
+            return null;
         })
     }
 }

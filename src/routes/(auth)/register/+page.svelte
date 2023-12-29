@@ -175,6 +175,7 @@
 			<Github />
 		</span>
 	</OAuthForm>
+
 	<p class="mt-8 text-xs font-light text-center text-gray-400">
 		Already have an account? <a
 			data-sveltekit-preload-data="tap"

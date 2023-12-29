@@ -1,14 +1,15 @@
 
 
 export enum OAUTH_CALLBACK_ACTIONS {
-    LOGIN, //login
-    REGISTER, // register
-    MERGE, // merge with existing account, logs in with new
-    LINK, // No confirmation, link with existing logged in account
+    LOGIN = "login", //login
+    REGISTER = "register", // register
+    MERGE = "merge", // merge with existing account, logs in with new
+    LINK = "merge", // No confirmation, link with existing logged in account
+    NONE = "none"
 }
 
 export enum OAUTH_CALLBACK_RESPONSES {
-    CONFIRM, // take confirmation to merge or register
-    SUCCESS_REDIRECT, // successfully logged in or registered, redirect to home page with message
-    SHOW_ERROR, // show error message, maybe broken link, expired link, etc
+    CONFIRM = "confirm", // take confirmation to merge or register
+    SUCCESS_REDIRECT = "success_redirect", // successfully logged in or registered, redirect to home page with message
+    SHOW_ERROR = "show_error", // show error message, maybe broken link, expired link, etc
 }

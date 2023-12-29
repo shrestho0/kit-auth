@@ -25,6 +25,8 @@ type GoogleIdTokenPayload = {
     picture: string;
 }
 
+type OauthPageRequestedFromPage = "register" | "login" | "link" | undefined;
+
 type GoogleOauthTempData = {
     provider: string,
     oauth_refresh_token?: string,

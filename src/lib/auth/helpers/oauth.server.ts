@@ -119,8 +119,71 @@ export class OauthActionHelper {
         };
     }
 
-    static async getOauthAction(userEmail: string, userLoggedIn: boolean, thePageRequestedFrom: "register" | "login") {
+    /**
+     * 
+     * @param userEmail string
+     * @param userLoggedIn boolean
+     * @param thePageRequestedFrom OauthPageRequestedFromPage
+     * @returns OAUTH_CALLBACK_ACTIONS
+     */
+    static async getOauthActionAndResponseType(provider: oAuthProviders, userEmail: string, userLoggedIn: boolean, thePageRequestedFrom: OauthPageRequestedFromPage): Promise<{ OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES, OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS }> {
         console.log("thePage", thePageRequestedFrom);
+
+        // if (userLoggedIn && thePageRequestedFrom === "link") {
+        //     return OAUTH_CALLBACK_ACTIONS.LINK;
+        // }
+
+        if (userLoggedIn) {
+            return {
+                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SUCCESS_REDIRECT,
+                OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.LINK,
+            }
+        }
+
+
+        /**
+         * Speggetti code
+         */
+        const userExistsWithProvider = await AuthProvidersUtility.getProviderByEmailAndName(userEmail, provider, true);
+
+        const userExistsWithOtherProvider = await AuthProvidersUtility.getByProviderEmail(userEmail);
+        console.log("userExistsWithProvider", userExistsWithProvider);
+        console.log("userExistsWithOtherProvider", userExistsWithOtherProvider);
+
+        if (userExistsWithProvider) {
+            return {
+                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SUCCESS_REDIRECT,
+                OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.LOGIN,
+            };
+        }
+
+        if (userExistsWithOtherProvider) {
+            return {
+                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.CONFIRM,
+                OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.MERGE,
+            }
+        }
+
+        // new user here
+        if (thePageRequestedFrom === "register") {
+            return {
+                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SUCCESS_REDIRECT,
+                OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.REGISTER,
+
+            }
+        }
+        if (thePageRequestedFrom === "login") {
+            return {
+                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.CONFIRM,
+                OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.REGISTER,
+            }
+        }
+
+        return {
+            OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SHOW_ERROR,
+            OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS.NONE,
+        }
+
     }
 
 

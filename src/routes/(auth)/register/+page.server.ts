@@ -25,6 +25,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 
 
 export const actions: Actions = {
+    google: OauthActionHelper.handleGoogleAuthSubmission(),
     password: async ({ request, locals, cookies }) => {
         const regData = Object.fromEntries(await request.formData());
 
@@ -101,47 +102,6 @@ export const actions: Actions = {
         });
 
 
-
-
-        // devices will have their own refresh tokens
-        // no need to create refresh token from here
-
-        // const userDevice = await UserDeviceUtility.create(
-        //     {
-        //         deviceToken: deviceToken,
-        //         userId: newUser.id,
-        //         deviceDataJson: `{"todo": "not implemented"}`,
-
-
-        //     } as UserDevice, 
-        //     {
-        //         User
-        //     })
-
-        // const userDevice = await prisma.userDevice.create({
-        //     data: {
-        //         deviceToken: deviceToken ?? "",
-        //         userId: newUser.id,
-        //         deviceDataJson: `{"todo": "not implemented"}`,
-        //     },
-
-
-        // });
-
-        // const refreshTokenAndUserDevice = await prisma.refreshToken.create({
-        //     data: {
-        //         userId: newUser.id,
-        //         refreshToken: authTokens.refreshToken,
-        //         UserDevice: {
-        //             create: {
-        //                 userId: newUser.id,
-        //                 deviceToken: deviceToken ?? "",
-        //                 deviceDataJson: `{"todo": "not implemented"}`,
-        //             }
-        //         }
-        //     },
-
-        // })
         const refreshAndDeviceData = {
             userId: newUser.id,
             refreshToken: authTokens.refreshToken,
@@ -173,9 +133,7 @@ export const actions: Actions = {
 
         return redirect(307, "/");
 
-    }
-    ,
-    google: OauthActionHelper.handleGoogleAuthSubmission(),
+    },
 };
 
 

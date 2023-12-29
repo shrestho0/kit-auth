@@ -14,7 +14,7 @@ export class OauthCallbackHandlers {
         }
     }
 
-    static async handleGoogleOauthCallback(siteUrl: string, searchParams: any, locals: App.Locals, cookies: Cookies, userLoggedIn: boolean, thePageRequestedFrom: "register" | "login" | undefined) {
+    static async handleGoogleOauthCallback(siteUrl: string, searchParams: any, locals: App.Locals, cookies: Cookies, userLoggedIn: boolean, thePageRequestedFrom: OauthPageRequestedFromPage) {
         const { code } = searchParams; // everything that google passes in the url
         // console.log("google callback", siteUrl, code, locals, cookies, searchParams, userLoggedIn);
 
@@ -91,7 +91,7 @@ export class OauthCallbackHandlers {
          */
 
         /* Find oauth callback action */
-        const oauthAction = await OauthActionHelper.getOauthAction(tempData.oauth_user_email, userLoggedIn, thePageRequestedFrom);
+        const oauthAction = await OauthActionHelper.getOauthActionAndResponseType(tempData.provider as oAuthProviders, tempData.oauth_user_email, userLoggedIn, thePageRequestedFrom);
 
         console.log("oauth tempData", tempData, thePageRequestedFrom, oauthAction);
 

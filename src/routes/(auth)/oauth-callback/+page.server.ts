@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ url, params, cookies, locals }) => 
     const searchParams = Object.fromEntries(url.searchParams);
     const { provider } = searchParams;
 
-    const thePageRequestedFrom: "register" | "login" | undefined = await ServerSideCookieUtility.parseAuthPageRequestedFrom(cookies);
+    const thePageRequestedFrom: OauthPageRequestedFromPage = await ServerSideCookieUtility.parseAuthPageRequestedFrom(cookies);
 
     console.log("thePageRequestedFrom", thePageRequestedFrom);
 
