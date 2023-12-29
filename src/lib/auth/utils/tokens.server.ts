@@ -10,7 +10,7 @@ export class TokensUtility {
 
 
     // Auth Tokens Stuff
-    static generateAuthTokens(payload: PreJWTPayload) {
+    static generateAuthTokens(payload: PreJWTPayloadObject) {
         const accessToken = jwt.sign({
             _data: encodeBase64TokenObject(payload),
         }, JWT_ACCESS_SECRET, {
@@ -39,8 +39,21 @@ export class TokensUtility {
 
     // Device Token Stuff
 
-    static getDeviceToken(cookies: Cookies) {
+    static getDeviceTokenCookie(cookies: Cookies) {
         return ServerSideCookieUtility.getCookie(cookies, DEVICE_TOKEN_COOKIE_NAME);
+    }
+    /**
+     * 
+     * @param cookie 
+     * @returns 
+     */
+    static validateDeviceTokenCookie(cookies: Cookies) {
+        const dToken = ServerSideCookieUtility.getCookie(cookies, DEVICE_TOKEN_COOKIE_NAME)
+        if (dToken && dToken.length === 26) {
+            return dToken as String;
+        }
+
+        return null;
     }
 
     static getAuthToken(cookies: Cookies) {
@@ -53,7 +66,7 @@ export class TokensUtility {
 
     static async ensureAuthTokenCookie(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
         // console.log("ensureAuthTokenCookie", tokens, provider);
-        const cookieLoad = this.processCookie(tokens, provider);
+        const cookieLoad = this.processAuthTokens(tokens, provider);
 
         cookies.set(JWT_COOKIE_NAME, cookieLoad, {
             httpOnly: true,
@@ -88,7 +101,7 @@ export class TokensUtility {
     }
 
     static checkDeviceTokenValidity(cookies: Cookies) {
-        const deviceToken = this.getDeviceToken(cookies);
+        const deviceToken = this.getDeviceTokenCookie(cookies);
         // TODO: Do additional checking here, like timestamp
         // && decodeTime(deviceToken) > Date.now()
         if (deviceToken && deviceToken.length === 26) {
@@ -99,10 +112,14 @@ export class TokensUtility {
 
     }
 
-    static async checkAccessTokenValidity(token: string) {
+    static async checkJWTTokenValidity(token: string, ttype: "access" | "refresh") {
         try {
 
-            let accessV = await this.validateToken(token, JWT_ACCESS_SECRET);
+            let accessV = await this.validateAuthToken(token, ttype === "access" ? JWT_ACCESS_SECRET : ttype === "refresh" ? JWT_REFRESH_SECRET : "") as {
+                valid: boolean;
+                data: PreJWTPayloadObject;
+                message?: string;
+            };
 
             if (accessV.valid) {
                 return {
@@ -118,30 +135,33 @@ export class TokensUtility {
         return null
     }
 
-    static async checkRefreshTokenValidity(token: string) {
 
+
+    static parseAuthTokensObject(payload: string): JWTTokenObject {
         try {
-
-            let refreshV = await this.validateToken(token, JWT_REFRESH_SECRET);
-
-            if (refreshV.valid) {
+            const decodedJson: Object = decodeBase64TokenObject(payload);
+            if (decodedJson.hasOwnProperty("access") && decodedJson.hasOwnProperty("refresh") && decodedJson.hasOwnProperty("provider")) {
                 return {
-                    id: refreshV.data.id,
-                    username: refreshV.data.username,
-                };
+                    ...decodedJson as JWTTokenObject
+                }
             }
 
+            throw new Error("Invalid Token Object");
         } catch (err) {
-            console.log(err);
+            return {
+                access: null,
+                refresh: null,
+                provider: null
+            } as JWTTokenObject;
         }
-
-        return null;
     }
 
-    static async validateToken(token: string, secret: string) {
+    static parsePreJWTPayloadObject(payload: string) {
+        return decodeBase64TokenObject(payload) as unknown as PreJWTPayloadObject;
+    }
+
+    static async validateAuthToken(token: string, secret: string) {
         try {
-            // decode
-            // check if valid
 
             const decoded: any = await jwt.decode(token);
             if (!decoded) {
@@ -153,15 +173,15 @@ export class TokensUtility {
             }
 
             const result: JWTPayload = await jwt.verify(token, secret) as JWTPayload;
-            return { valid: true, data: decodeBase64TokenObject(result._data) };
+            return { valid: true, data: this.parsePreJWTPayloadObject(result._data) };
         } catch (err) {
             // console.log(err);
         }
 
-        return { valid: false, message: "could not verify token" };
+        return { valid: false, data: null, message: "could not verify token" };
     }
 
-    static processCookie(tokens: Tokens, provider: oAuthProviders) {
+    static processAuthTokens(tokens: Tokens, provider: oAuthProviders) {
         const { accessToken, refreshToken } = tokens;
 
         return encodeBase64TokenObject({

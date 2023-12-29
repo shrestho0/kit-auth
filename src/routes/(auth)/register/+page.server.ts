@@ -1,3 +1,5 @@
+export const ssr = true;
+export const csr = false;
 
 // import prisma from "$lib/server/prisma";
 import { returnFailClientError, returnFailServerError } from "$auth/utils/errors.server";
@@ -9,12 +11,16 @@ import type { Actions, PageServerLoad } from "./$types";
 import type { OauthCredentials, RefreshToken, User, UserDevice } from "@prisma/client";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import prisma from "$lib/server/db/prisma";
+import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
+import { OauthActionHelper } from "$lib/auth/helpers/oauth.server";
 
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
     if (locals.user_id && locals.user_username) {
         return redirect(307, "/");
     }
+
+    await ServerSideCookieUtility.ensureRegisterPageCookieAsync(cookies);
 };
 
 
@@ -82,7 +88,7 @@ export const actions: Actions = {
 
 
 
-        const deviceToken = TokensUtility.getDeviceToken(cookies);
+        const deviceToken = TokensUtility.getDeviceTokenCookie(cookies);
 
         if (!deviceToken) returnFailClientError(400, {
             // Make the page reload or invalidate all
@@ -168,4 +174,8 @@ export const actions: Actions = {
         return redirect(307, "/");
 
     }
+    ,
+    google: OauthActionHelper.handleGoogleAuthSubmission(),
 };
+
+

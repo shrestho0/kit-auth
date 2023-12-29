@@ -1,5 +1,5 @@
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
-import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, generateGoogleAuthUrl, handleGoogeAuthSubmission, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
+import { AuthProvidersUtility, RefreshTokenUtility, UsersUtility, generateGoogleAuthUrl, handleGoogleAuthSubmission, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
 import { returnFailClientError, returnFailServerError } from "$lib/utils/error-utils.server";
 import { comparePassword, generateAuthTokens, setAuthCookies } from "$lib/utils/utils.server";
 import { userLoginSchema } from "$lib/validations/auth-validation";
@@ -73,7 +73,7 @@ export const actions: Actions = {
 
     },
 
-    google: handleGoogeAuthSubmission(),
+    google: handleGoogleAuthSubmission(),
 };
 
 

@@ -1,6 +1,6 @@
 import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/static/private";
 import { RefreshTokenUtility, ServerSideCookieUtility, findUniqueUserWithID, findUsersWithEmailOrUsername, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
-import { decodeBase64TokenObject, deleteAuthCookies, generateAuthTokens, setAuthCookies, validateToken } from "$lib/utils/utils.server";
+import { decodeBase64TokenObject, deleteAuthCookies, generateAuthTokens, setAuthCookies, validateAuthToken } from "$lib/utils/utils.server";
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 
@@ -21,7 +21,7 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
                 // if (provider === "password") {
 
                 try {
-                    let accessV = await validateToken(access, JWT_ACCESS_SECRET);
+                    let accessV = await validateAuthToken(access, JWT_ACCESS_SECRET);
                     // user is valid here
                     console.log("access", accessV.valid, accessV.data);
                     // send users to specific adapters maybe
@@ -34,7 +34,7 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
                     } else {
                         // access er meyad shesh
                         // check refresh and update tokens
-                        let refreshV = await validateToken(refresh, JWT_REFRESH_SECRET);
+                        let refreshV = await validateAuthToken(refresh, JWT_REFRESH_SECRET);
                         console.log("refresh", refreshV.valid, refreshV.data);
                         if (refreshV.valid) {
 
@@ -123,7 +123,7 @@ const DeviceTokenHandler: Handle = async ({ event, resolve }) => {
 
     // check if device token exists
     // check if cookie is valid
-    if (!ServerSideCookieUtility.getDeviceToken(event.cookies)) {
+    if (!ServerSideCookieUtility.getDeviceTokenCookie(event.cookies)) {
         //  if not, generate one
         // set that to the cookie with no expiry
         console.log("device token nei");

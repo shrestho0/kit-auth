@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import type { PageServerLoad } from "./$types";
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_COOKIE_NAME, OAUTH_REDIRECT } from "$env/static/private";
 import { AuthProvidersUtility, RefreshTokenUtility, TempDataUtility, TempUserUtility, UsersUtility, createOAuthCredentials, createTempUser, deleteTempUser, findTempUserWithEmail, findUsersWithEmailOrUsername, getGoogleOauth2Client, updateOAuthCredentials } from "$lib/utils/auth-utils.server";
-import { generateAuthTokens, pasrseUserDataFromGoogleIdToken, processCookie, setAuthCookies } from "$lib/utils/utils.server";
+import { generateAuthTokens, pasrseUserDataFromGoogleIdToken, processAuthTokens, setAuthCookies } from "$lib/utils/utils.server";
 import prisma from "$lib/server/prisma";
 import { redirect, type Cookies } from "@sveltejs/kit";
 import type { OauthCredentials, TempData } from "@prisma/client";
@@ -100,7 +100,7 @@ async function handleGoogleOauthCallback(siteUrl: string, code: string, locals: 
                     id: locals.user_username,
                     username: locals.user_id,
                 },
-                cookie_data: processCookie({
+                cookie_data: processAuthTokens({
                     accessToken: authTokens.accessToken,
                     refreshToken: authTokens.refreshToken
                 }, oauthCreds.provider as oAuthProviders)

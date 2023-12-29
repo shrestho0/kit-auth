@@ -1,8 +1,14 @@
 
 
-type PreJWTPayload = {
+type PreJWTPayloadObject = {
     id: string;
     username: string;
+}
+
+type JWTTokenObject = {
+    access: string | null;
+    refresh: string | null;
+    provider: oAuthProviders | null;
 }
 
 type JWTPayload = {
@@ -12,10 +18,21 @@ type JWTPayload = {
 }
 
 type GoogleIdTokenPayload = {
-    email?: string;
-    verified?: boolean;
-    name?: string;
-    picture?: string;
+    email: string;
+    email_verified: boolean;
+    verified: boolean;
+    name: string;
+    picture: string;
+}
+
+type GoogleOauthTempData = {
+    provider: string,
+    oauth_refresh_token?: string,
+    oauth_refresh_expiry_date?: number,
+    oauth_user_email: string,
+    oauth_user_name?: string,
+    oauth_user_picture?: string,
+    oauth_user_email_verified?: boolean,
 }
 
 

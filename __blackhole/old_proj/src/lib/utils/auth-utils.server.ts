@@ -1,7 +1,7 @@
 import { DEVICE_TOKEN_COOKIE_NAME, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MODE, OAUTH_REDIRECT } from "$env/static/private";
 import prisma from "$lib/server/prisma";
 import { RSAKey } from "$lib/server/rsa-key";
-import { Prisma, type OauthCredentials, type PrismaClient, type RefreshTokens, type User, type TempData, type TempUser, type UserDeviceTokens } from "@prisma/client";
+import { Prisma, type OauthCredentials, type PrismaClient, type RefreshToken, type User, type TempData, type TempUser, type UserDeviceTokens } from "@prisma/client";
 import { google } from "googleapis";
 import { RSAKeyError } from "./error-utils.server";
 import { resultOrNull } from "./utils.server";
@@ -368,7 +368,7 @@ export async function updateOAuthCredentials(providerId: string, data: OauthCred
 
 export class RefreshTokenUtility {
 
-    static async create(data: RefreshTokens, include?: Prisma.RefreshTokensInclude) {
+    static async create(data: RefreshTokens, include?: Prisma.RefreshTokenInclude) {
         return resultOrNull(async () => {
             // const token = await prisma.refreshTokens.create({
             //     data: data
@@ -381,7 +381,7 @@ export class RefreshTokenUtility {
             return token;
         })
     }
-    static async update(id: string, data: any, include?: Prisma.RefreshTokensInclude) {
+    static async update(id: string, data: any, include?: Prisma.RefreshTokenInclude) {
         return resultOrNull(async () => {
             const token = await prisma.refreshTokens.update({
                 where: {
@@ -520,7 +520,7 @@ export async function parseRVKeyAndGetTempUser(rvkey: string, dfCookie: string) 
 
 
 
-export function handleGoogeAuthSubmission(): Action {
+export function handleGoogleAuthSubmission(): Action {
     return async ({ request, locals, cookies, url }) => {
         const provider = "google";
         const siteUrl = url.origin;
@@ -541,7 +541,7 @@ export function handleGoogeAuthSubmission(): Action {
 
 export class ServerSideCookieUtility {
 
-    static getDeviceToken(cookies: Cookies) {
+    static getDeviceTokenCookie(cookies: Cookies) {
         try {
             return cookies.get(DEVICE_TOKEN_COOKIE_NAME);
         } catch (err) {

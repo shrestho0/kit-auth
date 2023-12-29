@@ -151,6 +151,7 @@
 
 	<p class="mt-8 text-xs font-light text-center text-gray-400">
 		Don't have an account? <a
+			data-sveltekit-preload-data="tap"
 			href="/register"
 			class="font-medium text-gray-700 -dark:text-gray-200 hover:underline">Create One</a
 		>

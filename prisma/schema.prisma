@@ -44,6 +44,7 @@ model OauthCredentials {
   @@index([userId])
 }
 
+// maybe we will just save all temp data to TempData
 model TempUser {
   id       String  @id @default(uuid())
   email    String  @unique

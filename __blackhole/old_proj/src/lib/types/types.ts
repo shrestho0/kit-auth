@@ -1,6 +1,6 @@
 
 
-type PreJWTPayload = {
+type PreJWTPayloadObject = {
     id: string;
     username: string;
 }

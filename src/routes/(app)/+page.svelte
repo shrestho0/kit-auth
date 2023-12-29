@@ -2,7 +2,10 @@
 	import { applyAction, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 
-	const siteRoutes = [
+	const siteRoutes: {
+		name: string;
+		path: string;
+	}[] = [
 		{ name: 'Home', path: '/' },
 		{ name: 'About', path: '/about' },
 		{ name: 'Register', path: '/register' },
@@ -37,7 +40,15 @@
 				<ul class="menu menu-horizontal">
 					<!-- Navbar menu content here -->
 					{#each siteRoutes as route}
-						<li><a href={route.path}>{route.name}</a></li>
+						<li>
+							<a
+								data-sveltekit-preload-data={route.path.startsWith('/login') ||
+								route.path.startsWith('/register')
+									? false
+									: true}
+								href={route.path}>{route.name}</a
+							>
+						</li>
 					{/each}
 					<form
 						action="/logout"

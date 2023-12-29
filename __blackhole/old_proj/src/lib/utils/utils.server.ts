@@ -45,7 +45,7 @@ export function decodeBase64TokenObject(payload: any) {
 }
 
 
-export async function generateAuthTokens(payload: PreJWTPayload) {
+export async function generateAuthTokens(payload: PreJWTPayloadObject) {
 
 
     // console.log("Generating accessToken");
@@ -83,7 +83,7 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 
 
 // These will go to JWTUtility
-export async function validateToken(token: string, secret: string) {
+export async function validateAuthToken(token: string, secret: string) {
     try {
         // decode
         // check if valid
@@ -115,7 +115,7 @@ export async function validateToken(token: string, secret: string) {
 
 // }
 
-export function processCookie(tokens: Tokens, provider: oAuthProviders) {
+export function processAuthTokens(tokens: Tokens, provider: oAuthProviders) {
     const { accessToken, refreshToken } = tokens;
 
     return encodeBase64TokenObject({
@@ -129,7 +129,7 @@ export function processCookie(tokens: Tokens, provider: oAuthProviders) {
 
 export async function setAuthCookies(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
 
-    const cookieLoad = processCookie(tokens, provider);
+    const cookieLoad = processAuthTokens(tokens, provider);
 
     cookies.set(JWT_COOKIE_NAME, cookieLoad, {
         httpOnly: true,

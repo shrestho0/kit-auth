@@ -40,12 +40,14 @@ export function encodeBase64TokenObject(payload: any) {
     return Buffer.from(JSON.stringify(payload), "utf-8").toString('base64');
 }
 
-export function decodeBase64TokenObject(payload: any) {
-    return JSON.parse(Buffer.from(payload, "base64").toString("utf-8"))
+// TODO: Remove this, Use: TokensUtility.parseAuthTokens()
+export function decodeBase64TokenObject(payload: any): Object {
+    return JSON.parse(Buffer.from(payload, "base64").toString("utf-8"));
+
 }
 
 
-export async function generateAuthTokens(payload: PreJWTPayload) {
+export async function generateAuthTokens(payload: PreJWTPayloadObject) {
 
 
     // console.log("Generating accessToken");
@@ -82,7 +84,7 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 }
 
 // in TokensUtility
-// export async function validateToken(token: string, secret: string) {
+// export async function validateAuthToken(token: string, secret: string) {
 //     try {
 //         // decode
 //         // check if valid
@@ -114,7 +116,7 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 
 // }
 
-// export function processCookie(tokens: Tokens, provider: oAuthProviders) {
+// export function processAuthTokens(tokens: Tokens, provider: oAuthProviders) {
 //     const { accessToken, refreshToken } = tokens;
 
 //     return encodeBase64TokenObject({
@@ -128,7 +130,7 @@ export async function generateAuthTokens(payload: PreJWTPayload) {
 
 // export async function setAuthCookies(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
 
-//     const cookieLoad = processCookie(tokens, provider);
+//     const cookieLoad = processAuthTokens(tokens, provider);
 
 //     cookies.set(JWT_COOKIE_NAME, cookieLoad, {
 //         httpOnly: true,
