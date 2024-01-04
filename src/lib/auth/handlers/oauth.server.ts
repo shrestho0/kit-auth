@@ -150,7 +150,7 @@ export class OauthCallbackHandlers {
                 const payloadString = JSON.stringify({
                     temp_user_id: tempUserData.id,
                     deviceToken: locals.device_token,
-                    expiresAt: Date.now() + (1000 * parseInt(CONFIRM_LINK_EXPIRY))  // 1 hour
+                    expiresAt: Date.now() + (1000 * parseInt(CONFIRM_LINK_EXPIRY))  // CONFIRM_LINK_EXPIRY seconds
                 } as RSAPayload);
 
                 const rvkey = encodeURIComponent(RSAKey.encrypt(payloadString) ?? "");

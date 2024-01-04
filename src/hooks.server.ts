@@ -1,41 +1,16 @@
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, MODE } from "$env/static/private";
-import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
+
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
-import { decodeBase64TokenObject } from "$lib/auth/utils/common.server";
 import { RefreshTokenUtility, UserDeviceUtility } from "$lib/auth/utils/db.server";
 import type { RefreshToken } from "@prisma/client";
-import { PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME } from "$env/static/public";
 
 
 
 const AuthHandler: Handle = async ({ event, resolve }) => {
 
-    /**
-     * We are not targeting security over performance here [for authentication].
-     */
-
-    // const pathName = event.url.pathname;
-    /* Ensure Device Token */
-    // const dt = TokensUtility.validateDeviceTokenCookie(event);
-    // if (!dt) {  }
-    // else {
-    // event.locals.device_token = dt as string;
-    // }
-
     TokensUtility.ensureDeviceTokenCookie(event);
 
-
-    // event.locals.device_token = dt;
-
-    // if (!pathName.startsWith("/login") || !pathName.startsWith("/register")) {
-    //     /**
-    //      * Ensure No Page Cookie, Cookies of other pages
-    //      * TODO: do this in better way
-    //      */
-    //     ServerSideCookieUtility.ensureNoAuthPageCookie(event.cookies);
-    // }
 
     /* Check if Auth Token exists */
     const userAuthTokens = TokensUtility.getAuthToken(event.cookies);
@@ -82,9 +57,15 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
 
         const depRefreshToken = await RefreshTokenUtility.getByRefreshToken(refresh, true);
 
+        if (!depRefreshToken) {
+            TokensUtility.deleteAuthTokenCookie(event.cookies);
+            return await resolve(event)
+        }
+
+        console.log("TOKEN TOKEN TOKEN", depRefreshToken?.UserDevice[0].deviceToken === event.locals.device_token)
         /* If refresh token okay but user changed their deviceToken, we'll delete refreshToken and log them out */
 
-        if (depRefreshToken?.UserDevice?.deviceToken != event.locals.device_token) {
+        if (depRefreshToken?.UserDevice[0].deviceToken != event.locals.device_token) {
             console.log("Device token changed. Deleting cookies");
             // delete refresh token
             await RefreshTokenUtility.deleteByToken(refresh);
@@ -95,11 +76,6 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
             // delete device token cookies
             TokensUtility.deleteDeviceTokenCookie(event.cookies);
 
-            return await resolve(event)
-        }
-
-        if (!depRefreshToken) {
-            TokensUtility.deleteAuthTokenCookie(event.cookies);
             return await resolve(event)
         }
 

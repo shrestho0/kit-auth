@@ -139,6 +139,17 @@ export class UserDeviceUtility {
     //     })
     // }
 
+    static async getWithUserId(userId: string) {
+        return resultOrNull(async () => {
+            const stuff = await prisma.userDevice.findMany({
+                where: {
+                    userId: userId
+                }
+            })
+            return stuff;
+        })
+    }
+
     static async delete(id: string) {
         return resultOrNull(async () => {
             const token = await prisma.userDevice.delete({

@@ -5,7 +5,6 @@ import type { CookieSerializeOptions } from "cookie";
 
 import * as bcrypt from "bcrypt";
 import { MODE, LOGIN_COOKIE_NAME, LOGIN_COOKIE_VAL, REGISTER_COOKIE_NAME, REGISTER_COOKIE_VAL } from "$env/static/private";
-import { PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME } from "$env/static/public";
 
 export class ServerSideCookieUtility {
 
