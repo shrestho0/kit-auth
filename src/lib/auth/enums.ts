@@ -8,7 +8,7 @@ export enum OAUTH_CALLBACK_ACTIONS {
     NONE = "none"
 }
 
-export enum OAUTH_CALLBACK_RESPONSES {
+export enum AUTH_RESPONSES {
     CONFIRM = "confirm", // take confirmation to merge or register
     SUCCESS_REDIRECT = "success_redirect", // successfully logged in or registered, redirect to home page with message
     SHOW_ERROR = "show_error", // show error message, maybe broken link, expired link, etc

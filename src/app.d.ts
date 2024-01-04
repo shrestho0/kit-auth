@@ -11,6 +11,7 @@ declare global {
 			prisma: PrismaClient;
 			user_id: string | null;
 			user_username: string | null;
+			device_token: string;
 		}
 		// interface PageData {}
 		// interface PageState {}

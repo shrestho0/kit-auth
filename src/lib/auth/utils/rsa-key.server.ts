@@ -1,4 +1,5 @@
 import NodeRSA from "node-rsa";
+import type { RSAPayload } from "../types";
 
 // Move keys to somewhere else
 const privateKeyData = `-----BEGIN RSA PRIVATE KEY-----

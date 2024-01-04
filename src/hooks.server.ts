@@ -4,7 +4,7 @@ import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/sta
 import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import { decodeBase64TokenObject } from "$lib/auth/utils/common.server";
-import { RefreshTokenUtility } from "$lib/auth/utils/db.server";
+import { RefreshTokenUtility, UserDeviceUtility } from "$lib/auth/utils/db.server";
 import type { RefreshToken } from "@prisma/client";
 
 
@@ -17,7 +17,16 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
 
     // const pathName = event.url.pathname;
     /* Ensure Device Token */
-    if (!TokensUtility.validateDeviceTokenCookie(event.cookies)) TokensUtility.ensureDeviceTokenCookie(event.cookies);
+    // const dt = TokensUtility.validateDeviceTokenCookie(event);
+    // if (!dt) {  }
+    // else {
+    // event.locals.device_token = dt as string;
+    // }
+
+    TokensUtility.ensureDeviceTokenCookie(event);
+
+
+    // event.locals.device_token = dt;
 
     // if (!pathName.startsWith("/login") || !pathName.startsWith("/register")) {
     //     /**
@@ -70,7 +79,32 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
             return await resolve(event)
         };
 
-        const depRefreshToken = await RefreshTokenUtility.getByRefreshToken(refresh);
+        const depRefreshToken = await RefreshTokenUtility.getByRefreshToken(refresh, true);
+
+        /* If refresh token okay but user changed their deviceToken, we'll delete refreshToken and log them out */
+
+
+        if (depRefreshToken.UserDevice.deviceToken != event.locals.device_token) {
+            console.log("Device token changed. Deleting cookies");
+            // delete refresh token
+            await RefreshTokenUtility.deleteByToken(refresh);
+            // delete device token
+            await UserDeviceUtility.deleteIfExistsByUserAndDeviceToken(id, depRefreshToken.UserDevice.deviceToken);
+            // delete auth cookies
+            TokensUtility.deleteAuthTokenCookie(event.cookies);
+            // delete device token cookies
+            TokensUtility.deleteDeviceTokenCookie(event.cookies);
+
+            event.cookies.set("single_use_message", "Device token changed. Please login again", {
+                path: "/",
+                httpOnly: true,
+                sameSite: "lax",
+                maxAge: 60 * 60 * 24 * 7,
+            });
+
+            return await resolve(event)
+        }
+        console.log("depRefreshToken", depRefreshToken);
 
         if (!depRefreshToken) {
             TokensUtility.deleteAuthTokenCookie(event.cookies);

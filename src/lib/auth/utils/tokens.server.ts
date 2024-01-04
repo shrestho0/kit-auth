@@ -1,10 +1,11 @@
 import { DEVICE_TOKEN_COOKIE_NAME, JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_COOKIE_NAME, JWT_REFRESH_EXPIRES, JWT_REFRESH_SECRET, MODE } from "$env/static/private";
-import type { Cookies } from "@sveltejs/kit";
+import type { Cookies, RequestEvent } from "@sveltejs/kit";
 import { ulid, decodeTime } from "ulid";
 import { ServerSideCookieUtility } from "./cookies.server";
 import { decodeBase64TokenObject, encodeBase64TokenObject } from "./common.server";
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { convertNumberSuffixToSecond } from "./common";
+import type { JWTPayload, JWTTokenObject, PreJWTPayloadObject, Tokens, oAuthProviders } from "../types";
 
 export class TokensUtility {
 
@@ -47,8 +48,8 @@ export class TokensUtility {
      * @param cookie 
      * @returns 
      */
-    static validateDeviceTokenCookie(cookies: Cookies) {
-        const dToken = ServerSideCookieUtility.getCookie(cookies, DEVICE_TOKEN_COOKIE_NAME)
+    static validateDeviceTokenCookie(event: RequestEvent) {
+        const dToken = ServerSideCookieUtility.getCookie(event.cookies, DEVICE_TOKEN_COOKIE_NAME)
         if (dToken && dToken.length === 26) {
             return dToken as String;
         }
@@ -60,8 +61,18 @@ export class TokensUtility {
         return ServerSideCookieUtility.getCookie(cookies, JWT_COOKIE_NAME);
     }
 
-    static ensureDeviceTokenCookie(cookies: Cookies) {
-        this.setDeviceToken(cookies, ulid())
+    static ensureDeviceTokenCookie(event: RequestEvent) {
+
+        const dExists = this.validateDeviceTokenCookie(event);
+        if (dExists) {
+            event.locals.device_token = dExists as string;
+            return;
+        }
+
+
+        const dt = ulid();
+        event.locals.device_token = dt;
+        this.setDeviceToken(event.cookies, dt,)
     }
 
     static async ensureAuthTokenCookie(cookies: Cookies, tokens: Tokens, provider: oAuthProviders, strict: boolean = true) {
@@ -78,12 +89,12 @@ export class TokensUtility {
         });
     }
 
-    static setDeviceToken(cookies: Cookies, token: string) {
+    static setDeviceToken(cookies: Cookies, token: string, strict: boolean = false) {
         ServerSideCookieUtility.setCookie(cookies, DEVICE_TOKEN_COOKIE_NAME, token, {
             path: "/",
             maxAge: 31536e3, // 10 years
             httpOnly: true,
-            sameSite: "strict",
+            sameSite: strict ? "strict" : "lax",
         }
         );
     }

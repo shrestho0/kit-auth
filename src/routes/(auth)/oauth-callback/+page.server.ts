@@ -3,6 +3,7 @@ import { redirect, type Cookies, error } from "@sveltejs/kit";
 import { OauthActionHelper } from "$lib/auth/helpers/oauth.server";
 import { OauthCallbackHandlers } from "$lib/auth/handlers/oauth.server";
 import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
+import type { OauthPageRequestedFromPage } from "$lib/auth/types";
 
 
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { applyAction, enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { capitalizeFirstLetter, toTitleCase } from '$auth/utils/common';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -25,7 +25,14 @@
 		'bg-gray-800  hover:bg-gray-700 focus:outline-none focus:ring-gray-300 text-white';
 </script>
 
-<form method="post" {action} use:enhance={enhancedOAuthSignIn} class="flex items-center mt-3 -mx-2">
+{provider}
+
+<form
+	method="post"
+	action="/oauth/?/{provider}"
+	use:enhance={enhancedOAuthSignIn}
+	class="flex items-center mt-3 -mx-2"
+>
 	<button
 		type="submit"
 		class="flex items-center justify-center w-full px-6 py-2 mx-2 text-sm font-medium transition-colors duration-300 transform rounded-lg focus:outline-none {button_class}"

@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { convertNumberSuffixToSecond } from './common';
 import type { GoogleApis } from 'googleapis';
+import type { GoogleIdTokenPayload, PreJWTPayloadObject, Tokens } from '../types';
 
 
 

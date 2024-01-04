@@ -1,7 +1,13 @@
-import type { Cookies } from "@sveltejs/kit";
+import { redirect, type Cookies } from "@sveltejs/kit";
 import { GoogleOauthHelpers, OauthActionHelper } from "../helpers/oauth.server";
 import { pasrseUserDataFromGoogleIdToken } from "../utils/common.server";
-import { OAUTH_CALLBACK_RESPONSES } from "../enums";
+import { OAUTH_CALLBACK_ACTIONS, AUTH_RESPONSES } from "../enums";
+import { AuthProvidersUtility, RefreshTokenUtility, TempDataUtility, UsersUtility } from "../utils/db.server";
+import type { OauthCredentials, TempData, User } from "@prisma/client";
+import { RSAKey } from "../utils/rsa-key.server";
+import { CONFIRM_LINK_EXPIRY, DEVICE_TOKEN_COOKIE_NAME } from "$env/static/private";
+import type { GoogleOauthTempData, OauthPageRequestedFromPage, RSAPayload, oAuthProviders } from "../types";
+import { TokensUtility } from "../utils/tokens.server";
 
 
 export class OauthCallbackHandlers {
@@ -54,19 +60,18 @@ export class OauthCallbackHandlers {
         } catch (err: any) {
             console.log("google oauth callback error");
             if (err.message === "invalid_grant") {
-
                 return {
-                    OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SHOW_ERROR,
-                    message: err.message,
+                    OAUTH_CALLBACK_RESPONSE: AUTH_RESPONSES.SHOW_ERROR,
+                    message: "Invalid code. Please try again.",
                 }
             } else if (err.message === "no_request_page") {
                 return {
-                    OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SHOW_ERROR,
+                    OAUTH_CALLBACK_RESPONSE: AUTH_RESPONSES.SHOW_ERROR,
                     message: "Cookie issue. Please try again.",
                 }
             }
             return {
-                OAUTH_CALLBACK_RESPONSE: OAUTH_CALLBACK_RESPONSES.SHOW_ERROR,
+                OAUTH_CALLBACK_RESPONSE: AUTH_RESPONSES.SHOW_ERROR,
                 message: "Something went wrong. Please try again.",
             }
         }
@@ -91,11 +96,242 @@ export class OauthCallbackHandlers {
          */
 
         /* Find oauth callback action */
-        const oauthAction = await OauthActionHelper.getOauthActionAndResponseType(tempData.provider as oAuthProviders, tempData.oauth_user_email, userLoggedIn, thePageRequestedFrom);
+        const {
+            OAUTH_CALLBACK_ACTION,
+            OAUTH_CALLBACK_RESPONSE,
+            userExistsWithProvider,
+            userExistsWithOtherProvider,
+        }: {
+            OAUTH_CALLBACK_ACTION: OAUTH_CALLBACK_ACTIONS,
+            OAUTH_CALLBACK_RESPONSE: AUTH_RESPONSES,
+            userExistsWithProvider?: any,
+            userExistsWithOtherProvider?: any,
 
-        console.log("oauth tempData", tempData, thePageRequestedFrom, oauthAction);
+
+        } = await OauthActionHelper.getOauthActionAndResponseType(tempData.provider as oAuthProviders, tempData.oauth_user_email, userLoggedIn, thePageRequestedFrom);
+
+        // console.log("oauth tempData", tempData, thePageRequestedFrom, OAUTH_CALLBACK_ACTION, OAUTH_CALLBACK_RESPONSE);
+        console.warn(`
+        PAGE_REQUESTED_FROM: ${thePageRequestedFrom},
+
+        OAUTH_CALLBACK_ACTION: ${OAUTH_CALLBACK_ACTION},
+        OAUTH_CALLBACK_RESPONSE: ${OAUTH_CALLBACK_RESPONSE}
+        `)
+
+        /* Unknown action, nothing to do here */
+        if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.NONE) {
+            return OauthActionHelper.returnWithErrorMessage("Something went wrong. No action defined in oauth callback.");
+        }
+
+        /* Unknown case */
+        if (OAUTH_CALLBACK_RESPONSE === AUTH_RESPONSES.SHOW_ERROR) return OauthActionHelper.returnWithErrorMessage("Something went wrong. Please try again.");
 
         /* Take actions accordingly */
+
+        if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.LOGIN) {
+            console.log("User Login Hobe", userExistsWithProvider);
+            try {
+                await OauthActionHelper.loginUserWithOauth(cookies, locals, userExistsWithProvider.user, tempData.provider as oAuthProviders);
+                return { OAUTH_CALLBACK_ACTION, OAUTH_CALLBACK_RESPONSE, location: "/", message: "Logged in successfully. Re-directing to home page" }
+
+            } catch (err: any) {
+                return OauthActionHelper.returnWithErrorMessage(err.message);
+            }
+        }
+
+        if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.REGISTER) {
+            if (OAUTH_CALLBACK_RESPONSE === AUTH_RESPONSES.CONFIRM) {
+
+                const tempUserData: TempData = await TempDataUtility.create({ jsonStr: JSON.stringify(tempData) } as TempData);
+
+                if (!tempUserData) return OauthActionHelper.returnWithErrorMessage("Something went wrong. Please try again. Could not create temp user data");
+
+                // register after confirm
+                const payloadString = JSON.stringify({
+                    temp_user_id: tempUserData.id,
+                    deviceToken: locals.device_token,
+                    expiresAt: Date.now() + (1000 * parseInt(CONFIRM_LINK_EXPIRY))  // 1 hour
+                } as RSAPayload);
+
+                const rvkey = encodeURIComponent(RSAKey.encrypt(payloadString) ?? "");
+                return redirect(307, `/confirm-account/?rvkey=${rvkey}`);
+            }
+
+            // register user, and login
+            // create the actual account
+            const newUserId = crypto.randomUUID();
+            let newUserName = tempData.oauth_user_email?.split("@")[0] ?? newUserId?.split("-")[3];
+            const usernameExists = await UsersUtility.findUserByUsername(newUserName);
+            if (usernameExists) newUserName = newUserName + newUserId?.split("-")[2];
+            const newUserData = {
+                username: newUserName,
+                verified: tempData.oauth_user_email_verified,
+                oauthCredentials: {
+                    create: {
+                        provider: tempData.provider,
+                        providerEmail: tempData.oauth_user_email,
+                        oauthRefreshToken: tempData.oauth_refresh_token,
+                    }
+                } as unknown as OauthCredentials,
+            } as unknown as User;
+
+
+            // create user
+            const newUser = await UsersUtility.create(newUserData)
+            if (!newUser) return OauthActionHelper.returnWithErrorMessage("Failed to create user.");
+
+            try {
+                await OauthActionHelper.loginUserWithOauth(cookies, locals, newUser, tempData.provider as oAuthProviders);
+                return { OAUTH_CALLBACK_ACTION, OAUTH_CALLBACK_RESPONSE, location: "/", message: "Account created successfully. Re-directing to register page" }
+
+            } catch (err: any) {
+                return OauthActionHelper.returnWithErrorMessage(err.message);
+            }
+
+        }
+
+        if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.MERGE) {
+            console.log("User Merge Hobe", userExistsWithOtherProvider);
+        }
+
+        if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.LINK) {
+
+        }
+
+
+
+        // if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.REGISTER) {
+
+        //     // save data to tempData;
+
+
+        //     if (OAUTH_CALLBACK_RESPONSE === AUTH_RESPONSES.CONFIRM) {
+
+        //         const tempUserData: TempData = await TempDataUtility.create({
+        //             jsonStr: JSON.stringify(tempData),
+        //         } as TempData);
+
+        //         if (!tempUserData) return {
+        //             OAUTH_CALLBACK_RESPONSE: AUTH_RESPONSES.SHOW_ERROR,
+        //             message: "Something went wrong. Please try again. Could not create temp user data",
+        //         };
+
+        //         // register after confirm
+        //         const payloadString = JSON.stringify({
+        //             temp_user_id: tempUserData.id,
+        //             deviceToken: locals.device_token,
+        //             expiresAt: Date.now() + (1000 * parseInt(CONFIRM_LINK_EXPIRY))  // 1 hour
+        //         } as RSAPayload);
+        //         const rvkey = encodeURIComponent(RSAKey.encrypt(payloadString) ?? "");
+
+        //         return redirect(307, `/confirm-account/?rvkey=${rvkey}`);
+
+        //     } else if (OAUTH_CALLBACK_RESPONSE === AUTH_RESPONSES.SUCCESS_REDIRECT) {
+        //         // register user, and login
+        //         // tempData.
+        //         // create the actual account
+        //         const newUserId = crypto.randomUUID();
+
+        //         let newUserName = tempData.oauth_user_email?.split("@")[0] ?? newUserId?.split("-")[3];
+
+        //         const usernameExists = await UsersUtility.findUserByUsername(newUserName);
+
+        //         if (usernameExists) newUserName = newUserName + newUserId?.split("-")[2];
+
+        //         const newUserData = {
+        //             username: newUserName,
+        //             verified: tempData.oauth_user_email_verified,
+        //             oauthCredentials: {
+        //                 create: {
+        //                     provider: tempData.provider,
+        //                     providerEmail: tempData.oauth_user_email,
+        //                     oauthRefreshToken: tempData.oauth_refresh_token,
+        //                 }
+        //             } as unknown as OauthCredentials,
+
+
+        //         } as unknown as User;
+
+        //         const newUser = await UsersUtility.create(newUserData)
+        //         if (!newUser) throw new Error("Could not create user");
+
+        //         const authTokens = TokensUtility.generateAuthTokens({
+        //             username: newUser.username,
+        //             id: newUser.id
+        //         });
+
+
+        //         const refreshAndDeviceData = {
+        //             userId: newUser.id,
+        //             refreshToken: authTokens.refreshToken,
+        //             UserDevice: {
+        //                 create: {
+        //                     userId: newUser.id,
+        //                     deviceToken: locals.device_token ?? "",
+        //                     deviceDataJson: `{"todo": "not implemented"}`,
+        //                 }
+        //             }
+        //         }
+
+        //         const refreshTokenAndUserDevice = await RefreshTokenUtility.create(refreshAndDeviceData);
+
+        //         if (!refreshTokenAndUserDevice) throw new Error("Could not create refresh token and user device");
+
+        //         TokensUtility.ensureAuthTokenCookie(cookies, authTokens, tempData.provider as oAuthProviders);
+
+
+        //         return {
+        //             OAUTH_CALLBACK_ACTION,
+        //             OAUTH_CALLBACK_RESPONSE,
+        //             location: "/",
+        //             message: "Account created successfully. Re-directing to register page"
+        //         }
+
+
+        //     }
+
+
+        // }
+
+        // if (OAUTH_CALLBACK_ACTION === OAUTH_CALLBACK_ACTIONS.LOGIN) {
+
+        //     // find user provider with provider and email
+
+        //      // we have data, now login
+
+        //     const authTokens = TokensUtility.generateAuthTokens({
+        //         username: oauthUser.user.username,
+        //         id: oauthUser.user_id
+        //     });
+
+
+        //     const refreshAndDeviceData = {
+        //         userId: userExistsWithProvider.id,
+        //         refreshToken: authTokens.refreshToken,
+        //         UserDevice: {
+        //             create: {
+        //                 userId: newUser.id,
+        //                 deviceToken: locals.device_token ?? "",
+        //                 deviceDataJson: `{"todo": "not implemented"}`,
+        //             }
+        //         }
+        //     }
+
+        //     const refreshTokenAndUserDevice = await RefreshTokenUtility.create(refreshAndDeviceData);
+
+        //     if (!refreshTokenAndUserDevice) throw new Error("Could not create refresh token and user device");
+
+        //     TokensUtility.ensureAuthTokenCookie(cookies, authTokens, tempData.provider as oAuthProviders);
+
+
+        //     return {
+        //         OAUTH_CALLBACK_ACTION,
+        //         OAUTH_CALLBACK_RESPONSES: AUTH_RESPONSES.SHOW_ERROR, // TEMPORARY; MAKE IT JUST OAUTH_CALLBACK_RESPONSE
+        //         location: "/",
+        //         message: "Account created successfully. Re-directing to register page"
+        //     }
+        // }
+
 
 
 
