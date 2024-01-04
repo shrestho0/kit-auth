@@ -1,11 +1,12 @@
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "$env/static/private";
+import { JWT_COOKIE_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, MODE } from "$env/static/private";
 import { ServerSideCookieUtility } from "$lib/auth/utils/cookies.server";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import { decodeBase64TokenObject } from "$lib/auth/utils/common.server";
 import { RefreshTokenUtility, UserDeviceUtility } from "$lib/auth/utils/db.server";
 import type { RefreshToken } from "@prisma/client";
+import { PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME } from "$env/static/public";
 
 
 
@@ -83,8 +84,7 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
 
         /* If refresh token okay but user changed their deviceToken, we'll delete refreshToken and log them out */
 
-
-        if (depRefreshToken.UserDevice.deviceToken != event.locals.device_token) {
+        if (depRefreshToken?.UserDevice?.deviceToken != event.locals.device_token) {
             console.log("Device token changed. Deleting cookies");
             // delete refresh token
             await RefreshTokenUtility.deleteByToken(refresh);
@@ -95,16 +95,8 @@ const AuthHandler: Handle = async ({ event, resolve }) => {
             // delete device token cookies
             TokensUtility.deleteDeviceTokenCookie(event.cookies);
 
-            event.cookies.set("single_use_message", "Device token changed. Please login again", {
-                path: "/",
-                httpOnly: true,
-                sameSite: "lax",
-                maxAge: 60 * 60 * 24 * 7,
-            });
-
             return await resolve(event)
         }
-        console.log("depRefreshToken", depRefreshToken);
 
         if (!depRefreshToken) {
             TokensUtility.deleteAuthTokenCookie(event.cookies);

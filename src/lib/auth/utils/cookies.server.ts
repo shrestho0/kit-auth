@@ -5,6 +5,7 @@ import type { CookieSerializeOptions } from "cookie";
 
 import * as bcrypt from "bcrypt";
 import { MODE, LOGIN_COOKIE_NAME, LOGIN_COOKIE_VAL, REGISTER_COOKIE_NAME, REGISTER_COOKIE_VAL } from "$env/static/private";
+import { PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME } from "$env/static/public";
 
 export class ServerSideCookieUtility {
 
@@ -86,6 +87,19 @@ export class ServerSideCookieUtility {
         cookies.delete(LOGIN_COOKIE_NAME, { path: "/" });
         cookies.delete(REGISTER_COOKIE_NAME, { path: "/" });
     }
+
+    // static setSideWideErrorCookie(cookies: Cookies, message: string) {
+    //     cookies.set(PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME, message, {
+    //         path: "/",
+    //         httpOnly: false,
+    //         secure: MODE ?? "DEV" ? false : true,
+    //         sameSite: "lax",
+    //     });
+    // }
+
+    // static ensureNoSideWideErrorCookie(cookies: Cookies) {
+    //     cookies.delete(PUBLIC_SIDEWIDE_ERROR_COOKIE_NAME, { path: "/" })
+    // }
 
 
 }
