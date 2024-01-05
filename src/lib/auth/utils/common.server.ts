@@ -1,7 +1,6 @@
 
 import { JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_COOKIE_NAME, JWT_REFRESH_EXPIRES, JWT_REFRESH_SECRET, MODE } from '$env/static/private';
 import type { Cookies } from '@sveltejs/kit';
-import bcrypt from 'bcrypt';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { convertNumberSuffixToSecond } from './common';
 import type { GoogleApis } from 'googleapis';
@@ -18,21 +17,6 @@ export async function resultOrNull(callback: () => any, outputError: boolean = t
 
         return null;
     }
-}
-
-
-// hash password
-export async function hashPassword(password: string) {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-    return hash;
-}
-
-// compare password
-
-export async function comparePassword(password: string, encryptedPassword: string) {
-    const isMatch = await bcrypt.compare(password, encryptedPassword);
-    return isMatch;
 }
 
 // jwt 

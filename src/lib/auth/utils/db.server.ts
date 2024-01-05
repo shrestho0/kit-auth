@@ -93,10 +93,12 @@ export class AuthProvidersUtility {
         })
     }
 
-    static async getByUserId(userId: string) {
+    static async getByUserId(userId: string, orderBy: Prisma.OauthCredentialsOrderByWithRelationInput = { createAt: "desc" }) {
         return resultOrNull(async () => {
             const token = await prisma.oauthCredentials.findMany({
                 where: { userId: userId },
+                orderBy: orderBy
+
             })
 
             return token;
@@ -122,6 +124,8 @@ export class AuthProvidersUtility {
             return null;
         })
     }
+
+
 }
 
 
@@ -144,6 +148,9 @@ export class UserDeviceUtility {
             const stuff = await prisma.userDevice.findMany({
                 where: {
                     userId: userId
+                },
+                orderBy: {
+                    updateAt: "desc"
                 }
             })
             return stuff;

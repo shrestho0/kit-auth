@@ -1,11 +1,13 @@
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_REDIRECT } from "$env/static/private";
 import { redirect, type Actions, type Action, fail, type Cookies } from "@sveltejs/kit";
 import { google } from "googleapis";
+import bcrypt from 'bcrypt';
+
 import { TokensUtility } from "$auth/utils/tokens.server";
 import { returnFailClientError, returnFailServerError } from "$auth/utils/errors.server";
-import { userLoginSchema, userRegisterSchema } from "../validation";
+import { userLoginSchema, userRegisterSchema, userSetPasswordSchema } from "../validation";
 import { AuthProvidersUtility, RefreshTokenUtility, UserDeviceUtility, UsersUtility } from "$auth/utils/db.server";
-import { comparePassword, hashPassword, pasrseUserDataFromGoogleIdToken } from "$auth/utils/common.server";
+import { pasrseUserDataFromGoogleIdToken } from "$auth/utils/common.server";
 import { OAUTH_CALLBACK_ACTIONS, AUTH_RESPONSES } from "$auth/enums";
 import { ServerSideCookieUtility } from "../utils/cookies.server";
 import type { OauthPageRequestedFromPage, oAuthProviders } from "../types";
@@ -16,6 +18,58 @@ import type { OauthCredentials, User } from "@prisma/client";
 export class OauthActionHelper {
 
 
+    static handleAddOauthSubmission(): Action {
+        return async ({ request, locals, cookies }) => {
+            const { password, passwordConfirm, email } = Object.fromEntries(await request.formData());
+            console.log("password", password, passwordConfirm, email);
+            if (password !== passwordConfirm) return returnFailClientError(400, {
+                message: "Passwords do not match"
+            });
+            const validatedPassword = userSetPasswordSchema.safeParse({ password, email });
+            if (!validatedPassword.success) {
+                console.log("validatedPassword", validatedPassword.error);
+                return returnFailClientError(400, {
+                    message: "Invalid password. Min 8, max 64 characters."
+                });
+            }
+
+            const providerExists = await AuthProvidersUtility.getByUserId(locals.user_id as string);
+
+            // check if password exists
+
+            if (providerExists.find((provider: OauthCredentials) => provider.provider === 'password')) {
+                return returnFailClientError(400, {
+                    message: "Password already exists"
+                });
+            }
+
+
+            // if email does not exists fuck
+            if (providerExists.find((provider: OauthCredentials) => provider.providerEmail == validatedPassword.data.email)?.length === 0) {
+                return returnFailClientError(400, {
+                    message: "Email changed, can not proceed the request. Email does not match any of your provider"
+                })
+            }
+
+
+            if (!(await AuthProvidersUtility.create({
+                provider: "password",
+                providerEmail: validatedPassword.data.email,
+                passwordHash: await PasswordAuthHelper.hashPassword(validatedPassword.data.password),
+                userId: locals.user_id as string,
+            } as unknown as OauthCredentials))) {
+                return returnFailServerError(500, {
+                    message: "Failed to create provider"
+                });
+            }
+
+
+            return {
+                success: true,
+                message: "not implemented"
+            }
+        }
+    }
 
     static handlePasswordRegisterSubmission(): Action {
         return async ({ request, locals, cookies }) => {
@@ -62,7 +116,7 @@ export class OauthActionHelper {
                     create: {
                         provider: "password",
                         providerEmail: validatedData.data.email,
-                        passwordHash: await hashPassword(validatedData.data.password),
+                        passwordHash: await PasswordAuthHelper.hashPassword(validatedData.data.password),
 
                     }
                 } as unknown as OauthCredentials,
@@ -151,13 +205,20 @@ export class OauthActionHelper {
             /* return error if not  exists */
 
             if (!passProvider) {
+                // check if other provider exists
+                const otherProviders = await AuthProvidersUtility.getByProviderEmail(validatedData.data.email, true);
+                if (otherProviders.length > 0) {
+                    errors.push({ path: ["email"], message: "Password provider is not set for this user" });
+                    return returnFailClientError(400, errors)
+                }
                 errors.push({ path: ["email"], message: "No user found with email" });
+
                 return returnFailClientError(404, errors)
             }
 
             /* user exists here, check for password */
 
-            const passValid = await comparePassword(validatedData.data.password, passProvider.passwordHash as string);
+            const passValid = await PasswordAuthHelper.comparePassword(validatedData.data.password, passProvider.passwordHash as string);
             if (!passValid) {
                 errors.push({ path: ["password"], message: "Password is incorrect" });
                 return returnFailClientError(400, errors)
@@ -330,6 +391,28 @@ export class OauthActionHelper {
     }
 
 
+
+}
+
+
+export class PasswordAuthHelper {
+    static async hashPassword(password: string) {
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        return hash;
+    }
+
+
+
+    // hash password
+
+
+    // compare password
+
+    static async comparePassword(password: string, encryptedPassword: string) {
+        const isMatch = await bcrypt.compare(password, encryptedPassword);
+        return isMatch;
+    }
 
 }
 

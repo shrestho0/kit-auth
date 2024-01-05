@@ -1,5 +1,8 @@
+import { OauthActionHelper } from "$lib/auth/helpers/oauth.server";
 import { AuthProvidersUtility, UserDeviceUtility } from "$lib/auth/utils/db.server";
 import type { PageServerLoad } from "./$types";
+import type { Actions } from "@sveltejs/kit";
+
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals?.user_id) return;
@@ -12,4 +15,11 @@ export const load: PageServerLoad = async ({ locals }) => {
         UserDevices
     }
 
+};
+
+export const actions: Actions = {
+    // delete_device: UserDeviceUtility.handleDeleteDevice(),
+    // delete_oauth: AuthProvidersUtility.handleDeleteOauth(),
+    // add_device: UserDeviceUtility.handleAddDevice(),
+    add_oauth: OauthActionHelper.handleAddOauthSubmission(),
 };
