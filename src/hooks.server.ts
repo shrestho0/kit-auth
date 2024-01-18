@@ -9,6 +9,8 @@ import type { RefreshToken } from "@prisma/client";
 
 const AuthHandler: Handle = async ({ event, resolve }) => {
 
+    console.log(event.request.headers.get("user-agent"), event.request.headers)
+
     TokensUtility.ensureDeviceTokenCookie(event);
 
 
