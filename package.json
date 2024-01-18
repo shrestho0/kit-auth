@@ -6,7 +6,7 @@
     "dev": "vite dev",
     "dev:oh": "npm run dev -- --host --open",
     "prisma:reset": " rm -rf prisma/dev.db && npx prisma migrate dev --name init && npx prisma generate && npx prisma studio",
-    "build": "vite build",
+    "build": "npx prisma generate && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
