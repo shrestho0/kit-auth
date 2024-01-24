@@ -4,7 +4,7 @@ import { sequence } from "@sveltejs/kit/hooks";
 import { TokensUtility } from "$lib/auth/utils/tokens.server";
 import { RefreshTokenUtility, UserDeviceUtility } from "$lib/auth/utils/db.server";
 import type { RefreshToken } from "@prisma/client";
-import { parseUserAgent } from "$lib/utils";
+import { parseUserAgent } from "$lib/utils/";
 
 
 const AuthHandler: Handle = async ({ event, resolve }) => {

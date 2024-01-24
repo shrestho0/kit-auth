@@ -1,9 +1,9 @@
 <script lang="ts">
 	import * as Sheet from '$ui/sheet';
-    import {Button} from '$ui/button';
-    import {siteConfig} from '$lib/config/site';
-	import {Logo, MobileLink} from "$components/docs";
-    let open = false;
+	import { Button } from '$ui/button';
+	import { siteConfig } from '$lib/config/site';
+	import { Logo, MobileLink } from '$components/docs';
+	let open = false;
 </script>
 
 <Sheet.Root bind:open>
@@ -15,44 +15,46 @@
 		>
 			<!-- <Icons.Hamburger class="h-5 w-5" /> -->
 
-<svg
-stroke-width="1.5"
-viewBox="0 0 24 24"
-fill="none"
-xmlns="http://www.w3.org/2000/svg"
-class="h-5 w-5"
->
-<path
-    d="M3 5H11"
-    stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-/>
-<path
-    d="M3 12H16"
-    stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-/>
-<path
-    d="M3 19H21"
-    stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-/>
-</svg>
+			<svg
+				stroke-width="1.5"
+				viewBox="0 0 24 24"
+				fill="none"
+				xmlns="http://www.w3.org/2000/svg"
+				class="h-5 w-5"
+			>
+				<path
+					d="M3 5H11"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+				<path
+					d="M3 12H16"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+				<path
+					d="M3 19H21"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
 			<span class="sr-only">Toggle Menu</span>
 		</Button>
 	</Sheet.Trigger>
+
 	<Sheet.Content side="left" class="pr-0">
 		<MobileLink href="/" class="flex items-center" bind:open>
-            <Logo class="flex items-center gap-2 justify-center " />
+			<Logo class="mr-2 flex items-center gap-2 justify-center " />
 			<!-- <Icons.logo class="mr-2 h-4 w-4" /> -->
 			<!-- <span class="font-bold">{siteConfig.name}</span> -->
 		</MobileLink>
+
 		<div class="my-4 h-[calc(100vh-8rem)] pb-10 pl-6 overflow-auto">
 			<div class="flex flex-col space-y-3">
 				{#each siteConfig.mainNav as navItem, index (navItem + index.toString())}

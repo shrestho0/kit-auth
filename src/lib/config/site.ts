@@ -11,18 +11,19 @@ export const siteConfig = {
     },
     keywords: `kit-auth`,
     mainNav: [
-        { title: "Home", url: "/" },
-        { title: "About", url: "/about" },
-        { title: "Contact", url: "/contact" },
+        { title: "Home", href: "/" },
+        { title: "About", href: "/about" },
+        { title: "Contact", href: "/contact" },
+        // { title: "Settings", href: "/settings" },
     ],
     sidebarNav: [
         {
-            title: "Home", url: "/", label: "Home", items: [
+            title: "Home", href: "/", label: "Home", items: [
                 { title: "Sub 1", href: "/", label: 'Sub1', disabled: false, },
             ]
         },
         {
-            title: "Home", url: "/", label: "Home", items: [
+            title: "Home", href: "/", label: "Home", items: [
                 { title: "Sub 1", href: "/", label: 'Sub1', disabled: false, },
             ]
         },

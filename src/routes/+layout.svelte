@@ -27,6 +27,7 @@
 	import { navigating } from '$app/stores';
 	import { fade } from 'svelte/transition';
 	import { ModeWatcher } from 'mode-watcher';
+	import { onMount } from 'svelte';
 
 	// progress bar value
 	const p = tweened(0, {
@@ -73,6 +74,11 @@
 			}, 100);
 		}
 	}
+
+	let loading = true;
+	onMount(() => {
+		loading = false;
+	});
 </script>
 
 {#if $p > 0 && $p < 1 && isVisible}
@@ -168,8 +174,14 @@
 		</ul>
 	</div>
 </div> -->
-<Header />
-<slot />
+{#if loading}
+	<div class="flex items-center justify-center h-screen">
+		<div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+	</div>
+{:else}
+	<Header />
+	<slot />
+{/if}
 <PreDebug {data} />
 <Toaster />
 <ModeWatcher />

@@ -5,12 +5,28 @@ import { resultOrNull } from "./common.server";
 
 export class UsersUtility {
 
-    static async get(id: string): Promise<User | null> {
+    static async get(id: string,includeProvider:boolean=false,userDevices:boolean=false): Promise<User | null> {
         return resultOrNull(async () => {
             const user = await prisma.user.findUnique({
-                where: { id }
+                where: { id },
+                include: {
+                    oauthCredentials: includeProvider,
+                    UserDevice: false
+                }
             })
             return user;
+        });
+    }
+
+    static async getUserEmailsById(id: string): Promise<string[] | null> {
+        return resultOrNull(async () => {
+            const emails = await prisma.oauthCredentials.findMany({
+                where: { userId: id },
+                select: {
+                    providerEmail: true
+                }
+            })
+            return emails.map(x => x.providerEmail);
         });
     }
 
