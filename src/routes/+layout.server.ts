@@ -8,5 +8,5 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
         }
     }
 
-    console.log("cookies", cookies.getAll());
+    // console.log("cookies", cookies.getAll());
 };

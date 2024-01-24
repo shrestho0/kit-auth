@@ -1,8 +1,9 @@
 <script lang="ts">
-	import './app.css';
+	import '$ui/app.css';
 	import { applyAction, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	export let data;
+
 	const siteRoutes: {
 		name: string;
 		path: string;
@@ -18,12 +19,14 @@
 	];
 
 	import { Toaster } from 'svelte-sonner';
+	import Header from '$lib/components/docs/header.svelte';
 	import PreDebug from '$lib/dev/PreDebug.svelte';
 
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import { navigating } from '$app/stores';
 	import { fade } from 'svelte/transition';
+	import { ModeWatcher } from 'mode-watcher';
 
 	// progress bar value
 	const p = tweened(0, {
@@ -75,10 +78,10 @@
 {#if $p > 0 && $p < 1 && isVisible}
 	<progress value={$p} transition:fade={{ duration: 300 }} />
 {/if}
+<!-- 
 <div class="drawer">
 	<input id="my-drawer-3" type="checkbox" class="drawer-toggle" />
 	<div class="drawer-content flex flex-col">
-		<!-- Navbar -->
 		<div class="w-full navbar bg-base-300">
 			<div class="flex-none lg:hidden">
 				<label for="my-drawer-3" aria-label="open sidebar" class="btn btn-square btn-ghost">
@@ -99,7 +102,6 @@
 			<div class="flex-1 px-2 mx-2"><a href="/"> KitAuth</a></div>
 			<div class="flex-none hidden lg:block">
 				<ul class="menu menu-horizontal">
-					<!-- Navbar menu content here -->
 					{#each siteRoutes as route}
 						<li><a href={route.path}>{route.name}</a></li>
 					{/each}
@@ -131,7 +133,6 @@
 				</ul>
 			</div>
 		</div>
-		<!-- Page content here -->
 		<slot />
 	</div>
 	<div class="drawer-side">
@@ -151,7 +152,6 @@
 							if (result.type === 'redirect') {
 								await applyAction(result);
 								invalidateAll();
-								// goto(result.location);
 								window.location.href = result.location;
 							}
 						};
@@ -167,9 +167,12 @@
 			{/if}
 		</ul>
 	</div>
-</div>
-
+</div> -->
+<Header />
+<slot />
+<PreDebug {data} />
 <Toaster />
+<ModeWatcher />
 
 <style>
 	progress {

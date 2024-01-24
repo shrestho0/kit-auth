@@ -17,8 +17,10 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			$lib: './src/lib',
-			$components: './src/lib/components',
 			$auth: './src/lib/auth',
+			$ui: './src/lib/components/ui',
+			$components: './src/lib/components',
+			"@/*": "./src/lib/*"
 			// $dev: './src/lib/dev',
 		}
 	},
