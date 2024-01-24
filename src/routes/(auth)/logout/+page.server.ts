@@ -9,27 +9,27 @@ export const load: PageServerLoad = async ({ locals }) => {
     return redirect(307, "/");
 };
 
-export const actions: Actions = {
-    default: async ({ request, locals, cookies }) => {
-        if (locals.user_id && locals.user_username) {
+// export const actions: Actions = {
+//     default: async ({ request, locals, cookies }) => {
+//         if (locals.user_id && locals.user_username) {
 
-            const tokens = TokensUtility.getAuthToken(cookies) as string;
-            const { refresh } = TokensUtility.parseAuthTokensObject(tokens);
-            if (refresh) {
-                const refreshT = await TokensUtility.checkJWTTokenValidity(refresh, "refresh");
-                const deletedDevice$ = await RefreshTokenUtility.deleteByToken(refresh);
-                console.log("deleted refresh token from db", deletedDevice$?.hasOwnProperty("refreshToken"));
+//             const tokens = TokensUtility.getAuthToken(cookies) as string;
+//             const { refresh } = TokensUtility.parseAuthTokensObject(tokens);
+//             if (refresh) {
+//                 const refreshT = await TokensUtility.checkJWTTokenValidity(refresh, "refresh");
+//                 const deletedDevice$ = await RefreshTokenUtility.deleteByToken(refresh);
+//                 console.log("deleted refresh token from db", deletedDevice$?.hasOwnProperty("refreshToken"));
 
-            } else {
+//             } else {
 
-            }
+//             }
 
 
-            const deleted$ = TokensUtility.deleteAuthTokenCookie(cookies);
-            console.log("deleted auth token cookie", deleted$);
+//             const deleted$ = TokensUtility.deleteAuthTokenCookie(cookies);
+//             console.log("deleted auth token cookie", deleted$);
 
-            return redirect(307, "/login");
-        }
+//             return redirect(307, "/login");
+//         }
 
-    }
-};
+//     }
+// };

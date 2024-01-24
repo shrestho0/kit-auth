@@ -27,8 +27,26 @@ export const siteConfig = {
                 { title: "Sub 1", href: "/", label: 'Sub1', disabled: false, },
             ]
         },
-
     ],
+
+    loggedUserDropdown: [
+        { title: "Profile", href: "/profile", shortcutKey: "p" },
+        { title: "Settings", href: "/settings", shortcutKey: "s" },
+        // { title: "Logout", href: "/logout", shortcutKey: "l" },
+    ],
+
+    nonLoggedInUserEvents: new Map([]),
+
+    loggedInUserEventsMap: new Map([
+        ["p", {
+            title: "Profile", href: "/profile", shortcutKey: "p", visible: true
+        },],
+        ["s", {
+            title: "Settings", href: "/settings", shortcutKey: "s", visible: true
+        },],
+
+    ])
+
 };
 
 

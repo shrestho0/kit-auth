@@ -5,13 +5,13 @@ import { resultOrNull } from "./common.server";
 
 export class UsersUtility {
 
-    static async get(id: string,includeProvider:boolean=false,userDevices:boolean=false): Promise<User | null> {
+    static async get(id: string, includeProvider: boolean = false, userDevices: boolean = false): Promise<User | null> {
         return resultOrNull(async () => {
             const user = await prisma.user.findUnique({
                 where: { id },
                 include: {
                     oauthCredentials: includeProvider,
-                    UserDevice: false
+                    UserDevices: userDevices
                 }
             })
             return user;

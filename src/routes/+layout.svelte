@@ -1,25 +1,9 @@
 <script lang="ts">
 	import '$ui/app.css';
-	import { applyAction, enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
+
 	export let data;
 
-	const siteRoutes: {
-		name: string;
-		path: string;
-	}[] = [
-		{ name: 'Home', path: '/' },
-		{ name: 'About', path: '/about' },
-		{ name: 'Test', path: '/test' }
-	];
-
-	const loggedInPages = [
-		{ name: 'Profile', path: '/profile' },
-		{ name: 'Settings', path: '/settings' }
-	];
-
 	import { Toaster } from 'svelte-sonner';
-	import Header from '$lib/components/docs/header.svelte';
 	import PreDebug from '$lib/dev/PreDebug.svelte';
 
 	import { tweened } from 'svelte/motion';
@@ -28,6 +12,7 @@
 	import { fade } from 'svelte/transition';
 	import { ModeWatcher } from 'mode-watcher';
 	import { onMount } from 'svelte';
+	import { Header, Footer } from '$lib/components/docs';
 
 	// progress bar value
 	const p = tweened(0, {
@@ -180,21 +165,30 @@
 	</div>
 {:else}
 	<Header />
-	<slot />
+	<main
+		class="relative flex min-h-screen flex-col bg-background"
+		id="page"
+		data-vaul-drawer-wrapper
+	>
+		<div class="flex-1">
+			<slot />
+			<PreDebug {data} />
+		</div>
+	</main>
+	<Footer />
 {/if}
-<PreDebug {data} />
 <Toaster />
 <ModeWatcher />
 
 <style>
 	progress {
 		--bar-color: rgba(255, 255, 255, 0.3);
-		--val-color: rgb(26, 5, 77);
+		--val-color: rgb(41, 41, 41);
 		position: fixed;
 		top: 0;
 		z-index: 99999;
 		left: 0;
-		height: 4px;
+		height: 3px;
 		width: 100vw;
 		border-radius: 0;
 	}

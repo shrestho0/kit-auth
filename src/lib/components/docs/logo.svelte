@@ -4,7 +4,7 @@
 	type $$Props = HTMLAttributes<HTMLElement>;
 </script>
 
-<div {...$$restProps}>
+<a href={siteConfig.url} {...$$restProps}>
 	<div class="w-3 h-3 rounded animate-pulse bg-primary"></div>
 	<div class="title">{siteConfig.name}</div>
-</div>
+</a>
